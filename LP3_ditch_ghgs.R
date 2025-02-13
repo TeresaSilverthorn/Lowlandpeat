@@ -89,21 +89,24 @@ CO2cal <- CO2cal %>%
   ))
 
 #plot the calibration curve
-CO2_cal_curve <- ggplot(CO2cal, aes(x = Area, y = CO2_ppm)) +
+CO2_cal_curve <- ggplot(CO2cal, aes(x = CO2_ppm, y = Area)) +
   geom_point(size = 3, color = "blue") +  # Scatter points
   geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linear regression
-  labs(x = "Average Area", y = "Known Concentration CO2 ppm", title = "CO2 Calibration Curve") +
+  labs(x = "Known Concentration CO2 ppm", y = "Average Area",  title = "CO2 Calibration Curve") +
   theme_minimal()
 CO2_cal_curve
 
 #linear relationship
-CO2_model <- lm(CO2_ppm ~ Area, data = CO2cal)
-summary(CO2_model)  # slope: 0.700463 and intercept: -53.023365
+CO2_model <- lm(Area ~ CO2_ppm, data = CO2cal)
+summary(CO2_model)  # slope: 1.42717 and intercept: 76.09342
 
-#predict
+
+#predict, y=mx+b solving for x=(y-b)/m
 dat <- dat %>%
-  mutate(CO2_ppm = ifelse(gas == "CO2", predict(CO2_model, newdata = dat), NA))
+  mutate(CO2_ppm = (Area-76.09342)/1.42717)
 
+dat <- dat %>%
+  mutate(CO2_ppm = ifelse(gas == "CO2", ((Area - 76.09342) / 1.42717), NA))
 
 
 
@@ -135,22 +138,20 @@ CH4cal <- CH4cal %>%
 
 #plot the calibration curve
 
-CH4_cal_curve <- ggplot(CH4cal, aes(x = Area, y = CH4_ppm)) +
+CH4_cal_curve <- ggplot(CH4cal, aes(x = CH4_ppm, y = Area)) +
   geom_point(size = 3, color = "blue") +  # Scatter points
   geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linear regression
-  labs(x = "Average Area", y = "Known Concentration CH4 ppm", title = "CH4 Calibration Curve") +
+  labs( x = "Known Concentration CH4 ppm", y = "Average Area", title = "CH4 Calibration Curve") +
   theme_minimal()
 CH4_cal_curve
 
 #linear relationship
-CH4_model <- lm(CH4_ppm ~ Area, data = CH4cal)
-summary(CH4_model)  # slope: 0.5563701 and intercept: -1.0862595
+CH4_model <- lm(Area ~ CH4_ppm, data = CH4cal)
+summary(CH4_model)  # slope: 1.797356 and intercept: 1.952527   
 
-#predict
+#predict, y=mx+b solving for x=(y-b)/m
 dat <- dat %>%
-  mutate(CH4_ppm = ifelse(gas == "CH4", predict(CH4_model, newdata = dat), NA))
-
-
+  mutate(CH4_ppm = ifelse(gas == "CH4", ((Area-1.952527 )/1.797356), NA))
 
 #### N2O calibration curve ####
 
@@ -180,20 +181,20 @@ N2Ocal <- N2Ocal %>%
 
 #plot the calibration curve
 
-N2O_cal_curve <- ggplot(N2Ocal, aes(x = Area, y = N2O_ppm)) +
+N2O_cal_curve <- ggplot(N2Ocal, aes(x = N2O_ppm, y = Area)) +
   geom_point(size = 3, color = "blue") +  # Scatter points
   geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linear regression
-  labs(x = "Average Area", y = "Known Concentration N2O ppm", title = "N2O Calibration Curve") +
+  labs( x = "Known Concentration N2O ppm", y = "Average Area", title = "N2O Calibration Curve") +
   theme_minimal()
 N2O_cal_curve
 
 #linear relationship
-N2O_model <- lm(N2O_ppm ~ Area, data = N2Ocal)
-summary(N2O_model)  # slope: 3.253e-04 and intercept: -7.872e-02 
+N2O_model <- lm(Area ~ N2O_ppm, data = N2Ocal)
+summary(N2O_model)  # slope: 3069.64 and intercept: 244.54
 
-#predict
+#predict, y=mx+b solving for x=(y-b)/m
 dat <- dat %>%
-  mutate(N2O_ppm = ifelse(gas == "N2O", predict(N2O_model, newdata = dat), NA))
+  mutate(N2O_ppm = ifelse(gas == "N2O", ((Area-244.54)/3069.64), NA))
 
 
 
