@@ -1,4 +1,4 @@
-#### R script to calculate ditch GHG fluxsed from concentration data ####
+#### R script to calculate ditch GHG fluxes from concentration data ####
 
 # Note sample naming conventions: Letter representing the date, official LP3 site code, ditch point (1., 2. ,3., or 4.), and replicate 1 or 2 (or AMB for ambient air).  
 # D  12/2024; E 01/2025; F 02/2025 
