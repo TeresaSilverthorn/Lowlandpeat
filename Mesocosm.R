@@ -7,6 +7,7 @@ library(dplyr)
 library(ggplot2)
 library(readxl)
 library(purrr)
+library(factoextra)
 #
 #
 #
@@ -125,7 +126,7 @@ dev.off()
 
 #### Chloride ####
 
-tiff("Cl_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Chloride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Cl <- ggplot(dat, aes(x = site, y =Cl_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -140,7 +141,7 @@ dev.off()
 
 
 #### Nitrite	#### 
-tiff("NO2_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Nitrite_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 NO2 <- ggplot(dat, aes(x = site, y =NO2_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -155,7 +156,7 @@ dev.off()
 
 #### Nitrate ####
 
-tiff("NO3_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Nitrate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 NO3 <- ggplot(dat, aes(x = site, y =NO3_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -169,7 +170,7 @@ dev.off()
 
 #### Phosphate	####
 
-tiff("PO4_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Phosphate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 PO4 <- ggplot(dat, aes(x = site, y =PO4_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -184,7 +185,7 @@ dev.off()
 
 #### Sulfate	#### 
 
-tiff("SO4_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Sulfate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 SO4 <- ggplot(dat, aes(x = site, y =SO4_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -201,7 +202,7 @@ dev.off()
 
 #### Sodium	####
 
-tiff("Na_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Sodium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Na <- ggplot(dat, aes(x = site, y =Na_mg_l )) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -216,7 +217,7 @@ dev.off()
 
 #### Ammonium	####
 
-tiff("NH4_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Ammonium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 NH4 <- ggplot(dat, aes(x = site, y =SO4_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -230,7 +231,7 @@ dev.off()
 
 #### Magnesium	#### 
 
-tiff("Mg_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Magnesium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Mg <- ggplot(dat, aes(x = site, y =Mg_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -245,7 +246,7 @@ dev.off()
 
 #### Potassium	#### 
 
-tiff("K_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Potassium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 K <- ggplot(dat, aes(x = site, y =K_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -260,7 +261,7 @@ dev.off()
 
 #### Calcium	#### 
 
-tiff("Ca_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Calcium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Ca <- ggplot(dat, aes(x = site, y =Ca_mg_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -273,9 +274,9 @@ Ca
 dev.off()
 
 
-#### Al	#####
+#### Aluminium	#####
 
-tiff("Al_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Aluminium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Al <- ggplot(dat, aes(x = site, y =Al_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -298,9 +299,9 @@ dev.off()
 # all NA 
 
 
-#### Cu	####
+#### Copper	####
 
-tiff("Cu_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Copper_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Cu <- ggplot(dat, aes(x = site, y =Cu_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -313,9 +314,9 @@ Cu
 dev.off()
 
 
-#### Fe	#### 
+#### Iron	#### 
 
-tiff("Fe_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Iron_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Fe <- ggplot(dat, aes(x = site, y =Fe_ug_l)) +
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -328,9 +329,9 @@ Fe
 dev.off()
 
 
-#### Mn	####
+#### Manganese	####
 
-tiff("Mn_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Manganese_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Mn <- ggplot(dat, aes(x = site, y =Mn_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -344,9 +345,9 @@ Mn
 dev.off()
 
 
-#### Ni	#### 
+#### Nickel	#### 
 
-tiff("Ni_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Nickel_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Ni <- ggplot(dat, aes(x = site, y =Ni_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -364,7 +365,7 @@ dev.off()
 
 
 #### Zn	#### 
-tiff("Zn_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+tiff("Zinc_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
 Zn <- ggplot(dat, aes(x = site, y =Zn_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
@@ -411,3 +412,53 @@ pairwise_results <- dat %>%
 #
 # print each result by changing the element name within the brackets
 pairwise_results[["pH"]]
+#
+#
+#
+################################################################################
+##### Run PCA ####
+#
+# Select numerical columns (excluding variables with NAs)
+dat_num <- dat[, c(4:7, 9:11, 13, 15:17, 22:23)]
+#
+# There are just a couple NA values, fill with mean (2 in F_mg_l, 2 in Fe_ug>l, 1 SO4_mg_l, 1 Cu_mg_l)
+dat_num$F_mg_l[is.na(dat_num$F_mg_l)] <- mean(dat_num$F_mg_l, na.rm = TRUE)
+dat_num$Fe_ug_l[is.na(dat_num$Fe_ug_l)] <- mean(dat_num$Fe_ug_l, na.rm = TRUE)
+dat_num$SO4_mg_l[is.na(dat_num$SO4_mg_l)] <- mean(dat_num$SO4_mg_l, na.rm = TRUE)
+dat_num$Cu_ug_l[is.na(dat_num$Cu_ug_l)] <- mean(dat_num$Cu_ug_l, na.rm = TRUE)
+#
+# Run PCA (standardizing the data)
+pca_result <- prcomp(dat_num, center = TRUE, scale. = TRUE)
+#
+# View summary statistics
+summary(pca_result)
+#
+# Scree plot showing variance explained by each PC
+fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black") 
+#
+#
+# Visualize the PCA with site as a grouping factor
+#
+my.col.var <- c("#1f78b4", "#3d9970", "#f7921e", "#91278e", "#e31a1c") #set colour palette
+#
+#
+tiff("PCA_LP3+_mesocosm_BW.tiff", units="in", width=8, height=6, res=300)
+PCA_fig <- fviz_pca_biplot(pca_result, 
+                           col.ind = dat$site,
+                           addEllipses = TRUE, label = "var",
+                           pointsize=3,
+                           alpha.ind=0.25,
+                           mean.point=F,
+                           palette=my.col.var,
+                           col.var = "black", repel = TRUE,
+                           legend.title = " ") + ggtitle(NULL) 
+PCA_fig
+dev.off()
+#
+# Interpretation: If sites cluster tightly in PCA space, it suggests they have similar water quality profiles. The further apart the clusters are, the more distinct the site differences.
+#
+# The longer the arrow for a variable, the more it influences the principal component. The direction of the arrow shows the correlation with the component, and the length indicates how much it "drives" that component.
+#
+# Variables that point in the same direction (or are aligned) are positively correlated with each other, while those in opposite directions are negatively correlated
+
+
