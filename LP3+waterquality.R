@@ -106,10 +106,8 @@ write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Da
 
 # Change order of land use factor
 dat$land_use <- factor(dat$land_use, levels = c("Semi-natural bog", "Semi-natural fen",  "Grassland", "Grassland/raised WTs", "Rewetted bog", "Rewetted extraction", "Cropland",  "River/HLC"    ))
-
-
-# Calculate mean and SD
-
+#
+#
 # Calculate mean and SD for each land use per month
 summary_dat <- dat %>%
   group_by(month, land_use) %>%
@@ -121,11 +119,10 @@ summary_dat <- dat %>%
     ),
     .groups = "drop"
   )
-
-
-
-
-
+#
+#
+#
+#
 #### pH ####
 
 
@@ -148,11 +145,11 @@ tiff("LP3+_water_quality_pH_time.tiff", units="in", width=6.5, height=4, res=300
 pH_time <- ggplot(summary_dat, aes(x = month, y = pH_mean, colour = land_use)) +
   geom_point(size = 3.5, alpha=0.7, position = position_dodge(width = 0.2)) +  # Note position dodge and caps don't work unless date is a factor
   geom_errorbar(aes(ymin = pH_mean - pH_sd, ymax = pH_mean + pH_sd, colour=land_use),
-                linewidth = 0.6, alpha=0.7) +  # SD whiskers
-  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+                linewidth = 0.6, alpha=0.7, width=0) +  
+  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7) +  
   labs( y = "pH", colour = "Land Use") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.title = element_blank(), axis.title.x = element_blank()) +  
+  theme( panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size=12), axis.text.y = element_text(size=12), legend.title = element_blank(), axis.title.x = element_blank()) +  
   scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
 pH_time
 
@@ -160,12 +157,14 @@ dev.off()
 
 
 pH_time2 <- ggplot(dat, aes(x = month, y = pH, colour = land_use)) +
-  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7) +  # Mean points
-  stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1),  
-               geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=0.5) +  # Mean ± SD error bars
-  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +  # Mean line
-  labs(y = "pH", colour = "Land Use") +   theme_minimal() +   theme(axis.text.x = element_text(angle = 45, hjust = 1),         legend.title = element_blank(),    axis.title.x = element_blank()) +  
-  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A",  "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" = "#FFB347",  "Semi-natural fen" = "#B5E48C", "Semi-natural bog" = "#6DA34D")) 
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = "pH", colour = "Land Use") +  theme_minimal() +  theme(panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), 
+        axis.title.x = element_blank()) +  
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Grassland/raised WTs" = "#A2D2FF", "Rewetted extraction"= "#A5F2D4", 
+                                 "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  
+                                 "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
 pH_time2
 
 
@@ -179,16 +178,29 @@ EC <- ggplot(dat, aes(x = land_use, y = EC_us_cm, fill = land_use)) + # Use fill
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   labs(  y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "River/HLC" ="#FFB347", "Rewetted bog" = "#6C91BF",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) #element_text(angle = 45, hjust = 1, size=12), 
+  theme(legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "River/HLC" ="#FFB347", "Rewetted bog" = "#6C91BF",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) #element_text(angle = 45, hjust = 1, size=12), 
 EC
 
 #dev.off()
+#
+#
+#
+#
+EC_time <- ggplot(summary_dat, aes(x = month, y = EC_us_cm_mean, colour = land_use)) +
+  geom_point(size = 3.5, alpha=0.7, position = position_dodge(width = 0.2)) +  # Note position dodge and caps don't work unless date is a factor
+  geom_errorbar(aes(ymin = EC_us_cm_mean - EC_us_cm_sd, ymax = EC_us_cm_mean + EC_us_cm_sd, colour=land_use),
+                linewidth = 0.6, alpha=0.7, width=0) +  # SD whiskers
+  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7) +  
+  labs(  y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
+  theme_minimal() +
+  theme( panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size=12), axis.text.y = element_text(size=12), legend.title = element_blank(), axis.title.x = element_blank()) +
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
+EC_time
 
 
 #### Fluoride ####
 
 #tiff("LP3+_water_quality_Fluoride.tiff", units="in", width=6.5, height=4, res=300)
-
 Fluo <- ggplot(dat, aes(x = land_use, y = F_mg_l, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
@@ -196,11 +208,10 @@ Fluo <- ggplot(dat, aes(x = land_use, y = F_mg_l, fill = land_use)) + # Use fill
   theme_minimal() + # Clean theme
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "River/HLC" ="#FFB347", "Rewetted bog" = "#6C91BF",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
 Fluo
-
 #dev.off()
-
-
-
+#
+#
+#
 #### Chloride ####
 
 #tiff("LP3+_water_quality_Chloride.tiff", units="in", width=6.5, height=4, res=300)
@@ -212,9 +223,17 @@ Cl <- ggplot(dat, aes(x = land_use, y =Cl_mg_l,  fill = land_use)) + # Use fill 
   theme_minimal() + # Clean theme
   theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "River/HLC" ="#FFB347", "Rewetted bog" = "#6C91BF",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
 Cl
-
 #dev.off()
-
+Cl_time <- ggplot(summary_dat, aes(x = month, y = Cl_mg_l_mean, colour = land_use)) +
+  geom_point(size = 3.5, alpha=0.7, position = position_dodge(width = 0.2)) +  # Note position dodge and caps don't work unless date is a factor
+  geom_errorbar(aes(ymin = Cl_mg_l_mean - Cl_mg_l_sd, ymax = Cl_mg_l_mean + Cl_mg_l_sd, colour=land_use),
+                linewidth = 0.6, alpha=0.7, width=0) +  
+  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7) +  
+  labs(y = expression("Cl- (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
+  theme_minimal() +
+  theme( panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size=12), axis.text.y = element_text(size=12), legend.title = element_blank(), axis.title.x = element_blank()) +  
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
+Cl_time
 
 #### Nitrite	#### 
 #tiff("LP3+_water_quality_NO2.tiff", units="in", width=6.5, height=4, res=300)
@@ -226,9 +245,20 @@ NO2 <- ggplot(dat, aes(x = land_use, y =NO2_mg_l,  fill = land_use)) + # Use fil
   theme_minimal() + # Clean theme
   theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
 NO2
-
 #dev.off()
-
+#
+#
+#
+NO2_time <- ggplot(summary_dat, aes(x = month, y = NO2_mg_l_mean, colour = land_use)) +
+  geom_point(size = 3.5, alpha=0.7, position = position_dodge(width = 0.2)) +  # Note position dodge and caps don't work unless date is a factor
+  geom_errorbar(aes(ymin = NO2_mg_l_mean - NO2_mg_l_sd, ymax = NO2_mg_l_mean + NO2_mg_l_sd, colour=land_use),
+                linewidth = 0.6, alpha=0.7, width=0) +  
+  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7) +  
+  labs(y = expression(NO[2]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
+  theme_minimal() +
+  theme( panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size=12), axis.text.y = element_text(size=12), legend.title = element_blank(), axis.title.x = element_blank()) +  
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
+NO2_time
 
 #### Nitrate ####
 
@@ -241,6 +271,18 @@ NO3 <- ggplot(dat, aes(x = land_use, y =NO3_mg_l,  fill = land_use)) + # Use fil
   theme_minimal() + # Clean theme
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF",  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
 NO3
+#
+#
+NO3_time <- ggplot(summary_dat, aes(x = month, y = NO3_mg_l_mean, colour = land_use)) +
+  geom_point(size = 3.5, alpha=0.7, position = position_dodge(width = 0.2)) +  # Note position dodge and caps don't work unless date is a factor
+  geom_errorbar(aes(ymin = NO3_mg_l_mean - NO3_mg_l_sd, ymax = NO3_mg_l_mean + NO3_mg_l_sd, colour=land_use),
+                linewidth = 0.6, alpha=0.7, width=0) +  
+  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7) +  
+  labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
+  theme_minimal() +
+  theme( panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size=12), axis.text.y = element_text(size=12), legend.title = element_blank(), axis.title.x = element_blank()) +  
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
+NO3_time
 
 #dev.off()
 
@@ -255,10 +297,9 @@ Br <- ggplot(dat, aes(x = land_use, y =Br_mg_l,  fill = land_use)) + # Use fill 
   theme_minimal() + # Clean theme
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) #element_text(angle = 45, hjust = 1, size=12), 
 Br
-
 #dev.off()
-
-
+#
+#
 #### Phosphate	####
 
 
@@ -273,9 +314,19 @@ PO4 <- ggplot(dat, aes(x = land_use, y =PO4_mg_l,  fill = land_use)) + # Use fil
   theme_minimal() + # Clean theme
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x =element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF",  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) # element_text(angle = 45, hjust = 1, size=12), 
 PO4
-
 #dev.off()
-
+#
+#
+PO4_time <- ggplot(summary_dat, aes(x = month, y = PO4_mg_l_mean, colour = land_use)) +
+  geom_point(size = 3.5, alpha=0.7, position = position_dodge(width = 0.2)) +  # Note position dodge and caps don't work unless date is a factor
+  geom_errorbar(aes(ymin = PO4_mg_l_mean - PO4_mg_l_sd, ymax = PO4_mg_l_mean + PO4_mg_l_sd, colour=land_use),
+                linewidth = 0.6, alpha=0.7, width=0) +  
+  geom_line(aes(colour = land_use), linewidth = 1, alpha = 0.7) +  
+  labs(y = expression(PO[4]^"3-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
+  theme_minimal() +
+  theme( panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size=12), axis.text.y = element_text(size=12), legend.title = element_blank(), axis.title.x = element_blank()) +  
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Grassland/raised WTs" = "#A2D2FF","Rewetted extraction"= "#A5F2D4", "Rewetted bog" = "#6C91BF", "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D")) 
+PO4_time
 
 #### Sulfate	#### 
 
@@ -660,10 +711,13 @@ combine3
 
 dev.off()
 
+#############################################################################
+#### Combine time series plots ####
 
 
-
-
+combine <- ggarrange(pH_time2, pH_time,
+                      ncol = 2, align = "v", common.legend=T )
+combine
 
 
 
