@@ -8,6 +8,9 @@ library(ggplot2)
 library(readxl)
 library(purrr)
 library(factoextra)
+library(ggpubr)
+library(stringr)
+
 #
 #
 #
@@ -22,9 +25,11 @@ dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Rep
 # Drop columns 5 to 8, which are emptry
 dat <- dat %>% select(-c(5:8))
 #
-# Replace non numeric values with NAs (cases below detection limits or insufficient sample)
+# Data cleaning of values below detection limit
 dat <- dat %>%
-  mutate(across(3:26, ~as.numeric(.), .names = "{.col}")) #NAs introduced error is expected
+  mutate(across(3:26, ~ as.numeric(case_when(
+    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
+    TRUE ~ as.character(.))))) 
 #
 #
 #
@@ -48,7 +53,7 @@ ancil_dat <- ancil_dat %>%
     grepl("Pymoor", source_site) ~ "TP-A",
     grepl("Manchester", source_site) ~ "MM",
     grepl("R8", source_site) ~ "RG-R8",
-    grepl("PEF", source_site) ~ "RG-R6",           # assume this must be R6
+    grepl("PEF", source_site) ~ "RG-PEF",           # assume this must be R6
     grepl("Wrights", source_site) ~ "WF-A",             #double check this is the right field
     TRUE ~ NA_character_  # Keep other values as NA
   ))
@@ -72,6 +77,11 @@ dat <- dat %>%
   select(1, 2, site, everything())
 #
 #
+#
+levels(as.factor(dat$site))
+#
+write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/LP3+_mesocosm_BW_dat.csv")
+#
 ##############################################################################
 #
 #
@@ -84,12 +94,13 @@ dat <- dat %>%
 
 tiff("pH_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-pH <- ggplot(dat, aes(x = site, y = pH)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
-  labs( y = "pH",  x = NULL,   fill = "Land Use" ) +
+pH <- ggplot(dat, aes(x = site, y = pH, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+  labs( y = "pH",  x = NULL ) +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 pH
 
 dev.off()
@@ -98,12 +109,12 @@ dev.off()
 
 tiff("EC_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-EC <- ggplot(dat, aes(x = site, y = EC_us_cm)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+EC <- ggplot(dat, aes(x = site, y = EC_us_cm, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(  y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 EC
 
 dev.off()
@@ -113,12 +124,12 @@ dev.off()
 
 tiff("Fluoride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Fluo <- ggplot(dat, aes(x = site, y = F_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Fluo <- ggplot(dat, aes(x = site, y = F_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + # Add boxplot without showing outliers
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("F- (mg L"^-1*")"), x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Fluo
 
 dev.off()
@@ -128,12 +139,12 @@ dev.off()
 
 tiff("Chloride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Cl <- ggplot(dat, aes(x = site, y =Cl_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Cl <- ggplot(dat, aes(x = site, y =Cl_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Cl- (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Cl
 
 dev.off()
@@ -143,12 +154,12 @@ dev.off()
 #### Nitrite	#### 
 tiff("Nitrite_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-NO2 <- ggplot(dat, aes(x = site, y =NO2_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+NO2 <- ggplot(dat, aes(x = site, y =NO2_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NO[2]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NO2
 
 dev.off()
@@ -158,12 +169,12 @@ dev.off()
 
 tiff("Nitrate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-NO3 <- ggplot(dat, aes(x = site, y =NO3_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+NO3 <- ggplot(dat, aes(x = site, y =NO3_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) +
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NO3
 
 dev.off()
@@ -172,13 +183,13 @@ dev.off()
 
 tiff("Phosphate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-PO4 <- ggplot(dat, aes(x = site, y =PO4_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+PO4 <- ggplot(dat, aes(x = site, y =PO4_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(PO[4]^"3-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   scale_y_log10() + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 PO4
 
 dev.off()
@@ -187,12 +198,13 @@ dev.off()
 
 tiff("Sulfate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-SO4 <- ggplot(dat, aes(x = site, y =SO4_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+SO4 <- ggplot(dat, aes(x = site, y =SO4_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + # Add boxplot without showing outliers
+ # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(SO[4]^"2-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  scale_y_log10() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 SO4
 
 dev.off()
@@ -204,12 +216,12 @@ dev.off()
 
 tiff("Sodium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Na <- ggplot(dat, aes(x = site, y =Na_mg_l )) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Na <- ggplot(dat, aes(x = site, y =Na_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + # Add boxplot without showing outliers
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Na (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Na
 
 dev.off()
@@ -217,14 +229,16 @@ dev.off()
 
 #### Ammonium	####
 
+
 tiff("Ammonium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-NH4 <- ggplot(dat, aes(x = site, y =SO4_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+NH4 <- ggplot(dat, aes(x = site, y =NH4_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + # 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  scale_y_log10() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NH4
 
 dev.off()
@@ -233,12 +247,13 @@ dev.off()
 
 tiff("Magnesium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Mg <- ggplot(dat, aes(x = site, y =Mg_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Mg <- ggplot(dat, aes(x = site, y =Mg_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Mg (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  scale_y_log10() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Mg
 
 dev.off()
@@ -248,12 +263,12 @@ dev.off()
 
 tiff("Potassium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-K <- ggplot(dat, aes(x = site, y =K_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+K <- ggplot(dat, aes(x = site, y =K_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("K (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 K
 
 dev.off()
@@ -263,12 +278,12 @@ dev.off()
 
 tiff("Calcium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Ca <- ggplot(dat, aes(x = site, y =Ca_mg_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Ca <- ggplot(dat, aes(x = site, y =Ca_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Ca (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Ca
 
 dev.off()
@@ -278,12 +293,13 @@ dev.off()
 
 tiff("Aluminium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Al <- ggplot(dat, aes(x = site, y =Al_ug_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Al <- ggplot(dat, aes(x = site, y =Al_ug_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + #
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Al (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  scale_y_log10() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Al
 
 dev.off()
@@ -303,12 +319,12 @@ dev.off()
 
 tiff("Copper_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Cu <- ggplot(dat, aes(x = site, y =Cu_ug_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Cu <- ggplot(dat, aes(x = site, y =Cu_ug_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Cu (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Cu
 
 dev.off()
@@ -318,12 +334,13 @@ dev.off()
 
 tiff("Iron_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Fe <- ggplot(dat, aes(x = site, y =Fe_ug_l)) +
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Fe <- ggplot(dat, aes(x = site, y =Fe_ug_l, fill=site)) +
+  geom_boxplot(width = 0.9) + #
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Fe (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  scale_y_log10() + 
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Fe
 
 dev.off()
@@ -333,13 +350,13 @@ dev.off()
 
 tiff("Manganese_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Mn <- ggplot(dat, aes(x = site, y =Mn_ug_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Mn <- ggplot(dat, aes(x = site, y =Mn_ug_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Mn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   scale_y_log10() + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Mn
 
 dev.off()
@@ -349,12 +366,12 @@ dev.off()
 
 tiff("Nickel_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Ni <- ggplot(dat, aes(x = site, y =Ni_ug_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Ni <- ggplot(dat, aes(x = site, y =Ni_ug_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+ # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Ni (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Ni
 
 dev.off()
@@ -367,13 +384,26 @@ dev.off()
 #### Zn	#### 
 tiff("Zinc_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Zn <- ggplot(dat, aes(x = site, y =Zn_ug_l)) + 
-  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+Zn <- ggplot(dat, aes(x = site, y =Zn_ug_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+ # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Zn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    )
+  scale_y_log10() + 
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.text.y = element_text(size=12), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Zn
+
+dev.off()
+
+#### combine plots ####
+
+jpeg("LP3+_mesocosm_BW_combined2.jpeg", units="in", width=12, height=12, res=200)
+
+combine <- ggarrange(Al, Ca, Cl, Cu, EC, Fluo, Fe, K, 
+                     Mg, Mn, Na, NH4, Ni, NO2, NO3, pH, 
+                     PO4, SO4, Zn, 
+                     ncol = 4, nrow = 5, align="hv",common.legend = F) # labels = c("(a)", "(b)", "(c)")
+combine
 
 dev.off()
 
@@ -412,6 +442,11 @@ pairwise_results <- dat %>%
 #
 # print each result by changing the element name within the brackets
 pairwise_results[["pH"]]
+pairwise_results[["EC_us_cm"]]
+pairwise_results[["SO4_mg_l"]]
+pairwise_results[["F_mg_l"]]
+pairwise_results[["PO4_mg_l"]]
+pairwise_results[["Al_ug_l"]]
 #
 #
 #
@@ -439,7 +474,8 @@ fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black"
 #
 # Visualize the PCA with site as a grouping factor
 #
-my.col.var <- c("#1f78b4", "#3d9970", "#f7921e", "#91278e", "#e31a1c") #set colour palette
+my.col.var <- c("#4A90E2", "#A347F3", "#F4B400", "#66A035", "#E63978") #set colour palette
+
 #
 #
 tiff("PCA_LP3+_mesocosm_BW.tiff", units="in", width=8, height=6, res=300)
@@ -447,7 +483,7 @@ PCA_fig <- fviz_pca_biplot(pca_result,
                            col.ind = dat$site,
                            addEllipses = TRUE, label = "var",
                            pointsize=3,
-                           alpha.ind=0.25,
+                           alpha.ind=0.5,
                            mean.point=F,
                            palette=my.col.var,
                            col.var = "black", repel = TRUE,
