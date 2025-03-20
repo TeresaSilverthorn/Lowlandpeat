@@ -165,8 +165,12 @@ dat <- dat %>%
 
 
 #
-#
+# Reorder site levels
 dat$site <- factor(dat$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RGR6", "WFA", "MF", "MOS", "ND", "RV", "WBF"))
+#
+# Reorder land use levels
+dat$land_use <- factor(dat$land_use, levels = c("Rewetted bog", "Semi-natural fen", "Regenerative arable", "Conventional arable", "Grassland" ))
+#
 #
 ################################################################################
 #### Check LOI ####
@@ -196,7 +200,7 @@ LOI_all <- ggplot(subset(dat, !is.na(site)), aes(y = percent_loi, x = depth_cm))
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
-  theme_minimal() +   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D") )
+  theme_minimal() +   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 LOI_all
 #
 dev.off()
@@ -215,7 +219,7 @@ moisture_all <- ggplot(subset(dat, !is.na(site)), aes(y = percent_moisture, x = 
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
-  theme_minimal() +   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D") )
+  theme_minimal() +   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 moisture_all
 #
 dev.off()
@@ -256,7 +260,7 @@ Pb_all <- ggplot(subset(dat, site!="HF"), aes(y = Pb_ug_g, x = depth_cm)) +
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal() + 
   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D") )
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 Pb_all
 #
 dev.off()
@@ -278,7 +282,7 @@ Zn_all <- ggplot(subset(dat, site!="HF"), aes(y = Zn_ug_g, x = depth_cm)) +
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal() +  # Use a minimal theme for a clean look
   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D") )
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 Zn_all
 #
 dev.off()
@@ -298,7 +302,7 @@ Fe_all <- ggplot(subset(dat, site!="HF"), aes(y = Fe_mg_g, x = depth_cm)) +
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal()  +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1),  axis.ticks.x = element_line(), axis.ticks.y = element_line()) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D") )
+  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1),  axis.ticks.x = element_line(), axis.ticks.y = element_line()) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 Fe_all
 #
 dev.off()
@@ -309,8 +313,6 @@ dev.off()
 #
 tiff("Cu_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-#
-#
 Cu_all <- ggplot(subset(dat, site!="HF"), aes(y = Cu_ug_g, x = depth_cm)) +
   geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +  geom_point(size=1.5, alpha=0.7) +  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
   labs(y = "Cu", x = "Depth (cm)") +
@@ -319,7 +321,7 @@ Cu_all <- ggplot(subset(dat, site!="HF"), aes(y = Cu_ug_g, x = depth_cm)) +
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal()  +
   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1), panel.background = element_blank()) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D")) 
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 Cu_all
 #
 dev.off()
@@ -330,8 +332,6 @@ dev.off()
 #
 tiff("Hg_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-#
-#
 Hg_all <- ggplot(subset(dat, site!="HF"), aes(y = Hg_ug_g, x = depth_cm)) +
   geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +  geom_point(size=1.5, alpha=0.7) +  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
   labs(y = "Hg", x = "Depth (cm)") +
@@ -340,7 +340,7 @@ Hg_all <- ggplot(subset(dat, site!="HF"), aes(y = Hg_ug_g, x = depth_cm)) +
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal()  +
   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1), panel.background = element_blank()) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D")) 
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 Hg_all
 #
 dev.off()
@@ -365,7 +365,7 @@ P_all <- ggplot(subset(dat, site!="HF"), aes(y = P_mg_g, x = depth_cm)) +
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal()  +
   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line()) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D")) 
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 P_all
 #
 dev.off()
@@ -386,7 +386,7 @@ K_all <- ggplot(subset(dat, site!="HF"), aes(y = K_mg_g, x = depth_cm)) +
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
   theme_minimal() +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line()) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" = "#FDE68A", "Grassland" = "#A2D2FF",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#6DA34D")) 
+  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line()) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
 K_all
 #
 dev.off()
