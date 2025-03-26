@@ -14,9 +14,147 @@ setwd("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Figures")
 #
 #
 # Read in XRF data
-dat <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn_2025-02-07.txt")
+dat1 <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn_2025-02-07.txt")
 #
 head(dat)
+
+# load in corrected and uncorrected and see if any are missing
+
+dat <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn_2025-03-26.txt")
+
+# Make column names based on the first two rows (element, units)
+# And make any other adjustments to the column names
+
+dat <- dat %>%
+  {setNames(., paste(.[1, ], .[2, ], sep = "_"))} %>%        # Extract the first two rows for elements and units
+  rename_with(~ gsub("Netto Counts", "netto_counts", .)) %>% 
+  rename_with(~ gsub("/", "_", .)) %>%
+  rename_with(~ gsub("%", "percent", .)) %>%
+  rename_with(~ gsub("\\?", "u", .)) %>%      # Double check with jenny if the ? is really micro
+  rename_with(~ gsub("_$", "", .)) %>%        # Remove trailing underscores
+  rename(sample_code = "Element_Dimension") %>%
+  mutate(site = str_extract(sample_code, "(?<=LP3\\+\\s)[A-Za-z0-9]{2,}(?=\\d|_|$)"))  %>%   # add a column for site
+  mutate(depth_cm = as.numeric(str_extract(sample_code, "(?<=_)[0-9]+(?=$)"))) %>%      # add a column for depth
+  slice(-1:-2) %>%                                               # Remove the first two columns
+  select(sample_code, site, depth_cm, everything())
+#
+#
+# Replace non numeric values with NAs (cases below detection limits or insufficient sample)
+dat <- dat %>%
+  mutate(across(6:77, ~as.numeric(.), .names = "{.col}")) #NAs introduced error is expected
+#
+#
+# Add a column for land use
+#
+dat$site <- as.factor(dat$site) # make site a factor
+#
+dat <- dat %>%
+  mutate(land_use = case_when(
+    site %in% c("LC", "WFA", "RGR6") ~ "Conventional arable",
+    site %in% c("SW") ~ "Regenerative arable",
+    site %in% c("ND", "MF", "WBF", "RV", "MOS") ~ "Grassland",
+    site %in% c("HF", "WW", "WSF" ) ~ "Semi-natural fen",
+    site %in% c("BM" ) ~ "Rewetted bog",   # Note from Mike this update not semi-natural, but rewetted
+    TRUE ~ "Other"  # Assign "Other" to all other sites (modify as needed)
+  )) %>%                                               # Remove the first two columns
+  select(sample_code, site, land_use, depth_cm, everything())
+#
+#
+#
+# Get maximum depth per site
+max_depth_per_site <- dat %>%
+  group_by(site) %>%
+  summarize(max_depth = max(depth_cm, na.rm = TRUE))
+#
+#
+dat$site <- factor(dat$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RGR6", "WFA", "MF", "MOS", "ND", "RV", "WBF"))
+#
+#
+# Correct error in WW, delete the _ after WW
+dat <- dat %>%
+  mutate(sample_code = str_replace(sample_code, "WW_", "WW"))
+#
+dat <- dat %>%
+  mutate(sample_code = str_replace(sample_code, "MF_", "MF"))
+#
+#
+#
+####################################################################
+# LOI corrected data
+
+dat_cor <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn 2025-03-26_CorrectedLOI.txt")
+
+str(dat_cor)
+
+# Make column names based on the first two rows (element, units)
+# And make any other adjustments to the column names
+
+dat_cor <- dat_cor %>%
+  {setNames(., paste(.[1, ], .[2, ], sep = "_"))} %>%        # Extract the first two rows for elements and units
+  rename_with(~ gsub("Netto Counts", "netto_counts", .)) %>% 
+  rename_with(~ gsub("/", "_", .)) %>%
+  rename_with(~ gsub("%", "percent", .)) %>%
+  rename_with(~ gsub("\\?", "u", .)) %>%      # Double check with jenny if the ? is really micro
+  rename_with(~ gsub("_$", "", .)) %>%        # Remove trailing underscores
+  rename(sample_code = "Element_Dimension") %>%
+  mutate(site = str_extract(sample_code, "(?<=LP3\\+\\s)[A-Za-z0-9]{2,}(?=\\d|_|$)"))  %>%   # add a column for site
+  mutate(depth_cm = as.numeric(str_extract(sample_code, "(?<=_)[0-9]+(?=$)"))) %>%      # add a column for depth
+  slice(-1:-2) %>%                                               # Remove the first two columns
+  select(sample_code, site, depth_cm, everything())
+#
+#
+# Replace non numeric values with NAs (cases below detection limits or insufficient sample)
+dat_cor <- dat_cor %>%
+  mutate(across(6:77, ~as.numeric(.), .names = "{.col}")) #NAs introduced error is expected
+#
+#
+# Add a column for land use
+#
+dat_cor$site <- as.factor(dat_cor$site) # make site a factor
+#
+dat_cor <- dat_cor %>%
+  mutate(land_use = case_when(
+    site %in% c("LC", "WFA", "RGR6") ~ "Conventional arable",
+    site %in% c("SW") ~ "Regenerative arable",
+    site %in% c("ND", "MF", "WBF", "RV", "MOS") ~ "Grassland",
+    site %in% c("HF", "WW", "WSF" ) ~ "Semi-natural fen",
+    site %in% c("BM" ) ~ "Rewetted bog",   # Note from Mike this update not semi-natural, but rewetted
+    TRUE ~ "Other"  # Assign "Other" to all other sites (modify as needed)
+  )) %>%                                               # Remove the first two columns
+  select(sample_code, site, land_use, depth_cm, everything())
+#
+#
+#
+# Get maximum depth per site
+max_depth_per_site <- dat_cor %>%
+  group_by(site) %>%
+  summarize(max_depth = max(depth_cm, na.rm = TRUE))
+#
+#
+dat_cor$site <- factor(dat_cor$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RGR6", "WFA", "MF", "MOS", "ND", "RV", "WBF"))
+#
+#
+# Correct error in WW, delete the _ after WW
+dat_cor <- dat_cor %>%
+  mutate(sample_code = str_replace(sample_code, "WW_", "WW"))
+#
+dat_cor <- dat_cor %>%
+  mutate(sample_code = str_replace(sample_code, "MF_", "MF"))
+
+
+# Find missing values
+# Find values in dat but not in dat_cor
+missing_in_dat_cor <- anti_join(dat, dat_cor, by = "sample_code")
+
+# Find values in df2 but not in df1
+missing_in_dat <- anti_join(dat_cor, dat, by = "sample_code")
+
+# Output
+print(missing_in_df2)
+print(missing_in_df1)
+
+
+
 #
 #
 #
