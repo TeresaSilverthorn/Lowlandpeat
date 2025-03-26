@@ -10,6 +10,7 @@ library(purrr)
 library(factoextra)
 library(ggpubr)
 library(stringr)
+library(lubridate)
 
 #
 #
@@ -19,32 +20,103 @@ setwd("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Figures")
 #
 #
 # load in data
-dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C110 INTERIM 20250220_TS.xlsx", range= "A10:AD94")  
+dat1 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C110 INTERIM 20250320_TS.xlsx", range= "A10:AF94")  
+#
+head(dat1) #84 obs of 32 vars
 #
 #
-# Drop columns 5 to 8, which are emptry
-dat <- dat %>% select(-c(5:8))
+dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C113 INTERIM 20250325_TS.xlsx", range= "A10:X258") 
+#
+head(dat2)
+#
+#
+#
+# Drop any empty rows
+dat1 <- dat1 %>% select(-c(5:8))    # Drop columns 5 to 8, which are empty
+dat2 <- dat2 %>% select(-c(9:12)) 
+#
 #
 # Data cleaning of values below detection limit
-dat <- dat %>%
-  mutate(across(3:26, ~ as.numeric(case_when(
+dat1 <- dat1 %>%
+  mutate(across(3:28, ~ as.numeric(case_when(
     str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
+    TRUE ~ as.character(.)))))    # NAs introduced warning is normal
 #
 #
+dat2 <- dat2 %>%   # note that SO4 has a lot of >> than symbols here, so over the detection limit, check with Mike about how to deal with these?
+  mutate(across(7:20, ~ as.numeric(case_when(
+    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
+    TRUE ~ as.character(.)))))    # NAs introduced warning is normal
+
+#
+#
+# Combine data files into one dataframe
+dat <- bind_rows(dat1, dat2)
+#
+str(dat)  # 332 obs of 32 vars
+#
+#
+#
+#
+#
+#
+################################################################################
 #
 # Load in the ancillary data file
-ancil_dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample log.xlsx", sheet= "Sample collection and despatch") 
+ancil_dat1 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample lo_TSg.xlsx", sheet= "Sample collection and despatch") #this is associated with C110
 #Note from Mike: The BW samples/field sites are listed in the “sample collection and despatch” tab. We can ignore the samples that are only Wasted Peat Project. 
 #
 #
-head(ancil_dat)
+ancil_dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample log_TS.xlsx", sheet= "BL-Week 1")  # this is associated with C113
+#
+#
+ancil_dat3 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample log_TS.xlsx", sheet= "Cycle 1-W1")  # this is associated with C113
+
+ancil_dat3$`Collection start date`
+#
+#
+# Subet just the LP3+ data
+ancil_dat1 <- ancil_dat1 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat2 <- ancil_dat2 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat3 <- ancil_dat3 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+#
+ancil_dat1$Tag <- as.numeric(ancil_dat1$Tag) # make column numeric in order to facilitate bind_rows
+#
+# Correct dates in ancil_dat3
+ancil_dat3 <- ancil_dat3 %>%
+  mutate(`Collection start date` = if_else(
+    grepl("/", `Collection start date`), 
+    as.character(dmy(`Collection start date`)),  # Convert dd/mm/yyyy to yyyy-mm-dd
+    as.character(as.Date(as.numeric(`Collection start date`), origin = "1899-12-30")), 
+    as.Date(`Collection start date`)
+  )) 
+
+
+
+
+
+
+
+ancil_dat3 <- ancil_dat3 %>%
+  mutate(`Collection start date` = as.Date(as.numeric(`Collection start date`), origin = "1899-12-30"))
+
+ancil_dat3 <- ancil_dat3 %>%
+  mutate(`Collection start date` = as.Date(`Collection start date`, origin = "1899-12-30"))
+
+str(ancil_dat3$`Collection start date`)
+
+#
+# Merge the ancil dat df's together
+ancil_dat <- bind_rows(ancil_dat1, ancil_dat2, ancil_dat3)
+
+
+
 #
 colnames(ancil_dat)[colnames(ancil_dat) == "Source/site Location"] <- "source_site"
 colnames(ancil_dat)[colnames(ancil_dat) == "Sample name"] <- "site_label"
 #
 #
-ancil_dat <- ancil_dat %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+
 #
 #
 #make a new column for site
@@ -99,7 +171,7 @@ pH <- ggplot(dat, aes(x = site, y = pH, fill=site)) +
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs( y = "pH",  x = NULL ) +
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
   scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 pH
 
@@ -114,7 +186,7 @@ EC <- ggplot(dat, aes(x = site, y = EC_us_cm, fill=site)) +
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(  y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 EC
 
 dev.off()
@@ -179,6 +251,39 @@ NO3
 
 dev.off()
 
+#### Phosphorous ####
+
+
+tiff("Phosphorous_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+
+P <- ggplot(dat, aes(x = site, y =P_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+  labs(y = expression(P ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
+  #scale_y_log10() + 
+  theme_minimal() + # Clean theme
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
+P
+
+dev.off()
+
+#### Silicon ####
+
+tiff("Si_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+
+Si <- ggplot(dat, aes(x = site, y =Si_mg_l, fill=site)) + 
+  geom_boxplot(width = 0.9) + 
+  #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+  labs(y = expression(Si ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
+ # scale_y_log10() + 
+  theme_minimal() + # Clean theme
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
+Si
+
+dev.off()
+
+
+
 #### Phosphate	####
 
 tiff("Phosphate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
@@ -237,7 +342,8 @@ NH4 <- ggplot(dat, aes(x = site, y =NH4_mg_l, fill=site)) +
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  scale_y_log10() + 
+  #scale_y_log10() + 
+  scale_y_continuous(trans = 'pseudo_log') +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NH4
 
@@ -299,6 +405,7 @@ Al <- ggplot(dat, aes(x = site, y =Al_ug_l, fill=site)) +
   labs(y = expression("Al (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
   scale_y_log10() + 
+  #scale_y_continuous(trans = 'pseudo_log') +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Al
 
@@ -340,6 +447,7 @@ Fe <- ggplot(dat, aes(x = site, y =Fe_ug_l, fill=site)) +
   labs(y = expression("Fe (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
   scale_y_log10() + 
+  #scale_y_continuous(trans = 'pseudo_log') +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Fe
 
@@ -397,12 +505,12 @@ dev.off()
 
 #### combine plots ####
 
-jpeg("LP3+_mesocosm_BW_combined2.jpeg", units="in", width=12, height=12, res=200)
+jpeg("LP3+_mesocosm_BW_combined2.jpeg", units="in", width=11, height=13, res=200)
 
 combine <- ggarrange(Al, Ca, Cl, Cu, EC, Fluo, Fe, K, 
-                     Mg, Mn, Na, NH4, Ni, NO2, NO3, pH, 
-                     PO4, SO4, Zn, 
-                     ncol = 4, nrow = 5, align="hv",common.legend = F) # labels = c("(a)", "(b)", "(c)")
+                     Mg, Mn, Na, NH4, Ni, NO2, NO3, P, pH, 
+                     PO4, Si, SO4, Zn, 
+                     ncol = 4, nrow = 6, align="hv",common.legend = F) # labels = c("(a)", "(b)", "(c)")
 combine
 
 dev.off()
@@ -412,7 +520,7 @@ dev.off()
 #
 #
 # 1. Test for normality using shapiro wilks test. If the p-value is less than 0.05, you reject the null hypothesis, suggesting the data is not normally distributed.
-shapiro_results <- sapply(dat[, c(4:11, 13:18, 22:25, 27)], shapiro.test)
+shapiro_results <- sapply(dat[, c(4:11, 13:20, 24:27, 29)], shapiro.test)
 # the majority are non-normal, so go with non-parametric tests
 #
 #
@@ -421,7 +529,7 @@ shapiro_results <- sapply(dat[, c(4:11, 13:18, 22:25, 27)], shapiro.test)
 #kruskal_results <- sapply(dat[, c(4:11, 13:18, 22:25, 27)], function(x) kruskal.test(x ~ dat$site))
 #
 kruskal_results <- dat %>%
-  select(c(4:11, 13:18, 22:25, 27)) %>%
+  select(c(4:11, 13:20, 24:27, 29)) %>%
   map(~ kruskal.test(.x ~ dat$site))
 #
 kruskal_p_values <- kruskal_results %>%
@@ -453,13 +561,20 @@ pairwise_results[["Al_ug_l"]]
 ################################################################################
 ##### Run PCA ####
 #
-# Select numerical columns (excluding variables with NAs)
-dat_num <- dat[, c(4:7, 9:11, 13, 15:17, 22:23)]
+# Select numerical columns (excluding variables with Na lot of 0s
+dat_num <- dat[, c(4:11, 13, 15:20, 24, 25)]
+
+#dat_num <- dat[, c(4:7, 9:11, 13, 15:17, 22:23)] 
+
+
+#
+# previously when there were NAs, now updated with 0s: 
 #
 # There are just a couple NA values, fill with mean (2 in F_mg_l, 2 in Fe_ug>l, 1 SO4_mg_l, 1 Cu_mg_l)
 dat_num$F_mg_l[is.na(dat_num$F_mg_l)] <- mean(dat_num$F_mg_l, na.rm = TRUE)
 dat_num$Fe_ug_l[is.na(dat_num$Fe_ug_l)] <- mean(dat_num$Fe_ug_l, na.rm = TRUE)
 dat_num$SO4_mg_l[is.na(dat_num$SO4_mg_l)] <- mean(dat_num$SO4_mg_l, na.rm = TRUE)
+#dat_num$NH4_mg_l[is.na(dat_num$SO4_mg_l)] <- mean(dat_num$NH4_mg_l, na.rm = TRUE)
 dat_num$Cu_ug_l[is.na(dat_num$Cu_ug_l)] <- mean(dat_num$Cu_ug_l, na.rm = TRUE)
 #
 # Run PCA (standardizing the data)
