@@ -36,6 +36,12 @@ dat1 <- dat1 %>% select(-c(5:8))    # Drop columns 5 to 8, which are empty
 dat2 <- dat2 %>% select(-c(9:12)) 
 #
 #
+# For dat1 the 61BW to 84BW rows are for the WastedPeat project and can be removed
+dat1 <- dat1 %>%
+  filter(!grepl("^6[1-9]BW$|^7[0-9]BW$|^8[0-4]BW$", site_label))
+#
+#
+#
 # Data cleaning of values below detection limit
 dat1 <- dat1 %>%
   mutate(across(3:28, ~ as.numeric(case_when(
@@ -63,60 +69,50 @@ str(dat)  # 332 obs of 32 vars
 ################################################################################
 #
 # Load in the ancillary data file
-ancil_dat1 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample lo_TSg.xlsx", sheet= "Sample collection and despatch") #this is associated with C110
+ancil_dat1 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Sample collection and despatch.csv") #this is associated with C110
 #Note from Mike: The BW samples/field sites are listed in the “sample collection and despatch” tab. We can ignore the samples that are only Wasted Peat Project. 
+head(ancil_dat1)
 #
 #
-ancil_dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample log_TS.xlsx", sheet= "BL-Week 1")  # this is associated with C113
+ancil_dat2 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/BL-Week 1.csv")  # this is associated with C113
+head(ancil_dat2)
 #
 #
-ancil_dat3 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Mesocosm sample log_TS.xlsx", sheet= "Cycle 1-W1")  # this is associated with C113
-
-ancil_dat3$`Collection start date`
+ancil_dat3 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 1-W1.csv")  # this is associated with C113; issues with date when using excel format
+head(ancil_dat3)
+#
+#
+ancil_dat4 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 1-W2.csv")  # this is associated with C113; 
+head(ancil_dat4)
 #
 #
 # Subet just the LP3+ data
 ancil_dat1 <- ancil_dat1 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat2 <- ancil_dat2 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat3 <- ancil_dat3 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat4 <- ancil_dat4 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 #
+#
+# Modify the individual df's so they align for binding
 ancil_dat1$Tag <- as.numeric(ancil_dat1$Tag) # make column numeric in order to facilitate bind_rows
 #
-# Correct dates in ancil_dat3
-ancil_dat3 <- ancil_dat3 %>%
-  mutate(`Collection start date` = if_else(
-    grepl("/", `Collection start date`), 
-    as.character(dmy(`Collection start date`)),  # Convert dd/mm/yyyy to yyyy-mm-dd
-    as.character(as.Date(as.numeric(`Collection start date`), origin = "1899-12-30")), 
-    as.Date(`Collection start date`)
-  )) 
-
-
-
-
-
-
-
-ancil_dat3 <- ancil_dat3 %>%
-  mutate(`Collection start date` = as.Date(as.numeric(`Collection start date`), origin = "1899-12-30"))
-
-ancil_dat3 <- ancil_dat3 %>%
-  mutate(`Collection start date` = as.Date(`Collection start date`, origin = "1899-12-30"))
-
-str(ancil_dat3$`Collection start date`)
-
+ancil_dat3$Week1.2 <- 1 # make column numeric to align with ancil_dat4 and facilitate bind_rows
+#
+ancil_dat3$Cycle.no. <- as.character(1)
+#
+ancil_dat4$Cycle.no. <- as.character(ancil_dat4$Cycle.no.) # make column character in order to facilitate bind_rows
+#
 #
 # Merge the ancil dat df's together
-ancil_dat <- bind_rows(ancil_dat1, ancil_dat2, ancil_dat3)
-
-
-
+ancil_dat <- bind_rows(ancil_dat1, ancil_dat2, ancil_dat3, ancil_dat4)
 #
-colnames(ancil_dat)[colnames(ancil_dat) == "Source/site Location"] <- "source_site"
-colnames(ancil_dat)[colnames(ancil_dat) == "Sample name"] <- "site_label"
+colnames(ancil_dat)[colnames(ancil_dat) == "Source.site.Location"] <- "source_site"
+colnames(ancil_dat)[colnames(ancil_dat) == "Sample.name"] <- "site_label"
+colnames(ancil_dat)[colnames(ancil_dat) == "Sample.type"] <- "sample_type"
+colnames(ancil_dat)[colnames(ancil_dat) == "Sample.collected"] <- "sample_collected"
+colnames(ancil_dat)[colnames(ancil_dat) == "Sample.type.code"] <- "sample_type_code"
 #
 #
-
 #
 #
 #make a new column for site
@@ -128,45 +124,110 @@ ancil_dat <- ancil_dat %>%
     grepl("PEF", source_site) ~ "RG-PEF",           # assume this must be R6
     grepl("Wrights", source_site) ~ "WF-A",             #double check this is the right field
     TRUE ~ NA_character_  # Keep other values as NA
-  ))
+  )) %>%
+  relocate(site, .after = source_site)
 #
 #
-# Get rid of spaces in site_label
-ancil_dat$site_label <- gsub(" ", "", ancil_dat$site_label)
+# Get rid of spaces in site_label between number and BW
+ancil_dat$site_label <- gsub(" (?=BW)", "", ancil_dat$site_label, perl = TRUE)
+#
+# Get rid of trailing spaces in ancil date site_label
+ancil_dat$site_label <- trimws(ancil_dat$site_label)
 #
 #
-#
-# Add sites to dat
+# Add sites and other ancillary information to dat
 dat <- dat %>% 
-  left_join(ancil_dat %>% select(site_label, site), by = "site_label")
+  left_join(ancil_dat %>% select(site, site_label, sample_collected, Group, sample_type, sample_type_code, Week.no., Cycle.no., Week1.2), by = "site_label")  
 #
-# Drop the rows where site is NA (those are from the Wasted Peat project)
+# Create a level for BW in the Cycle.no. column
 dat <- dat %>% 
-  filter(!is.na(site))
+mutate(Cycle.no. = case_when(
+  str_detect(site_label, "BW") & is.na(Cycle.no.) ~ "BW",
+  TRUE ~ as.character(Cycle.no.) ))
+#
+# Make a new colum called C.W (cycle week) which combines the cycle and week columns
+dat <- dat %>%
+  mutate(C.W = if_else(is.na(Week1.2), as.character(Cycle.no.), paste(Cycle.no., Week1.2, sep = "_")))
+#
+# Reorder the factor levels
+dat <- dat %>%
+  mutate(C.W = factor(C.W, levels = c("BW", "BL", "1_1", "1_2")))
+#
+# Trim trailing zeroes in Group
+dat$Group <- trimws(dat$Group)
+dat$Group <- as.factor(dat$Group)
+#
+# Note sure why in the Baseline (BL) data the group is called Fully re-wetted, while in the other weeks, it's called rewetted... change to align but check with Mike!
+levels(dat$Group)[levels(dat$Group) == "Fully re-wetted"] <- "Rewetted"
 #
 # Reorder columns to bring site closer to the start
 dat <- dat %>% 
-  select(1, 2, site, everything())
+ select(1, 2, site, everything())
+#
+levels(as.factor(dat$site)) # make site a factor 
 #
 #
+write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/LP3+_mesocosm_dat_all.csv")
 #
-levels(as.factor(dat$site))
+#################################################################################
 #
-write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/LP3+_mesocosm_BW_dat.csv")
+#### TIME SERIES PLOTS ####
 #
+
+jpeg("Cl_timeseries_LP3+_mesocosm1.jpg", units="in", width=6.5, height=4, res=300)
+
+Cl_time <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW"), aes(x = C.W, y = Cl_mg_l, colour = Group)) +
+  stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5)) +
+  labs(x = "Cycle_week", y = "Cl") +
+  theme_minimal()
+Cl_time
+
+dev.off()
+
+
+jpeg("Cl_timeseries_LP3+_mesocosm2.jpg", units="in", width=6.5, height=4, res=300)
+
+Cl_time <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW"), aes(x = C.W, y = Cl_mg_l, shape = Group, colour =site)) +
+  stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6) +
+  labs(x = "Cycle_week", y = "Cl") +
+  theme_minimal()
+Cl_time
+
+dev.off()
+
+
+
+
+NO2_time <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW"), aes(x = C.W, y = NO2_mg_l, colour = Group)) +
+  stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5)) +
+  labs(x = "Cycle_week", y = "NO2") +
+  theme_minimal()
+NO2_time
+
+
+NO3_time <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW"), aes(x = C.W, y = NO3_mg_l, colour = Group)) +
+  stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5)) +
+  labs(x = "Cycle_week", y = "NO3") +
+  theme_minimal()
+NO3_time
+
+
+
+
+
 ##############################################################################
 #
 #
-#### PLOT ####
+#### PLOTS FOR BIN WATER ####
 #
 #
 #
 #### pH ####
 
 
-tiff("pH_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("pH_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-pH <- ggplot(dat, aes(x = site, y = pH, fill=site)) + 
+pH <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = pH, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs( y = "pH",  x = NULL ) +
@@ -175,13 +236,13 @@ pH <- ggplot(dat, aes(x = site, y = pH, fill=site)) +
   scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 pH
 
-dev.off()
+#dev.off()
 
 #### EC ####
 
-tiff("EC_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("EC_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-EC <- ggplot(dat, aes(x = site, y = EC_us_cm, fill=site)) + 
+EC <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = EC_us_cm, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(  y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
@@ -189,14 +250,14 @@ EC <- ggplot(dat, aes(x = site, y = EC_us_cm, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 EC
 
-dev.off()
+#dev.off()
 
 
 #### Fluoride ####
 
-tiff("Fluoride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Fluoride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Fluo <- ggplot(dat, aes(x = site, y = F_mg_l, fill=site)) + 
+Fluo <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = F_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + # Add boxplot without showing outliers
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("F- (mg L"^-1*")"), x = NULL,   fill = "Land Use" ) +
@@ -204,14 +265,14 @@ Fluo <- ggplot(dat, aes(x = site, y = F_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Fluo
 
-dev.off()
+#dev.off()
 
 
 #### Chloride ####
 
-tiff("Chloride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Chloride_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Cl <- ggplot(dat, aes(x = site, y =Cl_mg_l, fill=site)) + 
+Cl <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Cl_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Cl- (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -219,14 +280,14 @@ Cl <- ggplot(dat, aes(x = site, y =Cl_mg_l, fill=site)) +
   theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Cl
 
-dev.off()
+#dev.off()
 
 
 
 #### Nitrite	#### 
-tiff("Nitrite_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Nitrite_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-NO2 <- ggplot(dat, aes(x = site, y =NO2_mg_l, fill=site)) + 
+NO2 <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =NO2_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NO[2]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -234,14 +295,14 @@ NO2 <- ggplot(dat, aes(x = site, y =NO2_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NO2
 
-dev.off()
+#dev.off()
 
 
 #### Nitrate ####
 
-tiff("Nitrate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Nitrate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-NO3 <- ggplot(dat, aes(x = site, y =NO3_mg_l, fill=site)) + 
+NO3 <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =NO3_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) +
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -249,14 +310,14 @@ NO3 <- ggplot(dat, aes(x = site, y =NO3_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NO3
 
-dev.off()
+#dev.off()
 
 #### Phosphorous ####
 
 
-tiff("Phosphorous_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Phosphorous_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-P <- ggplot(dat, aes(x = site, y =P_mg_l, fill=site)) + 
+P <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =P_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(P ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -265,13 +326,13 @@ P <- ggplot(dat, aes(x = site, y =P_mg_l, fill=site)) +
   theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 P
 
-dev.off()
+#dev.off()
 
 #### Silicon ####
 
-tiff("Si_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Si_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Si <- ggplot(dat, aes(x = site, y =Si_mg_l, fill=site)) + 
+Si <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Si_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(Si ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -280,15 +341,15 @@ Si <- ggplot(dat, aes(x = site, y =Si_mg_l, fill=site)) +
   theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Si
 
-dev.off()
+#dev.off()
 
 
 
 #### Phosphate	####
 
-tiff("Phosphate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Phosphate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-PO4 <- ggplot(dat, aes(x = site, y =PO4_mg_l, fill=site)) + 
+PO4 <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =PO4_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(PO[4]^"3-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -297,13 +358,13 @@ PO4 <- ggplot(dat, aes(x = site, y =PO4_mg_l, fill=site)) +
   theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 PO4
 
-dev.off()
+#dev.off()
 
 #### Sulfate	#### 
 
-tiff("Sulfate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Sulfate_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-SO4 <- ggplot(dat, aes(x = site, y =SO4_mg_l, fill=site)) + 
+SO4 <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =SO4_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + # Add boxplot without showing outliers
  # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(SO[4]^"2-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -312,16 +373,16 @@ SO4 <- ggplot(dat, aes(x = site, y =SO4_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 SO4
 
-dev.off()
+#dev.off()
 
 #### Lithium	####
 # all NA 
 
 #### Sodium	####
 
-tiff("Sodium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Sodium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Na <- ggplot(dat, aes(x = site, y =Na_mg_l, fill=site)) + 
+Na <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Na_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + # Add boxplot without showing outliers
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Na (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -329,15 +390,15 @@ Na <- ggplot(dat, aes(x = site, y =Na_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Na
 
-dev.off()
+#dev.off()
 
 
 #### Ammonium	####
 
 
-tiff("Ammonium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Ammonium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-NH4 <- ggplot(dat, aes(x = site, y =NH4_mg_l, fill=site)) + 
+NH4 <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =NH4_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + # 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -347,13 +408,13 @@ NH4 <- ggplot(dat, aes(x = site, y =NH4_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 NH4
 
-dev.off()
+#dev.off()
 
 #### Magnesium	#### 
 
-tiff("Magnesium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Magnesium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Mg <- ggplot(dat, aes(x = site, y =Mg_mg_l, fill=site)) + 
+Mg <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Mg_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Mg (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -362,14 +423,14 @@ Mg <- ggplot(dat, aes(x = site, y =Mg_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Mg
 
-dev.off()
+#dev.off()
 
 
 #### Potassium	#### 
 
-tiff("Potassium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Potassium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-K <- ggplot(dat, aes(x = site, y =K_mg_l, fill=site)) + 
+K <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =K_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("K (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -377,14 +438,14 @@ K <- ggplot(dat, aes(x = site, y =K_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 K
 
-dev.off()
+#dev.off()
 
 
 #### Calcium	#### 
 
-tiff("Calcium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Calcium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Ca <- ggplot(dat, aes(x = site, y =Ca_mg_l, fill=site)) + 
+Ca <- ggplot(subset(dat, Cycle.no. == "BW"),aes(x = site, y =Ca_mg_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Ca (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -392,14 +453,14 @@ Ca <- ggplot(dat, aes(x = site, y =Ca_mg_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Ca
 
-dev.off()
+#dev.off()
 
 
 #### Aluminium	#####
 
-tiff("Aluminium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Aluminium_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Al <- ggplot(dat, aes(x = site, y =Al_ug_l, fill=site)) + 
+Al <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Al_ug_l, fill=site)) + 
   geom_boxplot(width = 0.9) + #
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Al (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -409,7 +470,7 @@ Al <- ggplot(dat, aes(x = site, y =Al_ug_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Al
 
-dev.off()
+#dev.off()
 
 
 #### As ####
@@ -424,9 +485,9 @@ dev.off()
 
 #### Copper	####
 
-tiff("Copper_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Copper_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Cu <- ggplot(dat, aes(x = site, y =Cu_ug_l, fill=site)) + 
+Cu <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Cu_ug_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Cu (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -434,14 +495,14 @@ Cu <- ggplot(dat, aes(x = site, y =Cu_ug_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Cu
 
-dev.off()
+#dev.off()
 
 
 #### Iron	#### 
 
-tiff("Iron_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Iron_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Fe <- ggplot(dat, aes(x = site, y =Fe_ug_l, fill=site)) +
+Fe <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Fe_ug_l, fill=site)) +
   geom_boxplot(width = 0.9) + #
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Fe (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -451,14 +512,14 @@ Fe <- ggplot(dat, aes(x = site, y =Fe_ug_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Fe
 
-dev.off()
+#dev.off()
 
 
 #### Manganese	####
 
-tiff("Manganese_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Manganese_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Mn <- ggplot(dat, aes(x = site, y =Mn_ug_l, fill=site)) + 
+Mn <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Mn_ug_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Mn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -467,14 +528,14 @@ Mn <- ggplot(dat, aes(x = site, y =Mn_ug_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Mn
 
-dev.off()
+#dev.off()
 
 
 #### Nickel	#### 
 
-tiff("Nickel_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Nickel_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Ni <- ggplot(dat, aes(x = site, y =Ni_ug_l, fill=site)) + 
+Ni <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Ni_ug_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
  # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Ni (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -482,7 +543,7 @@ Ni <- ggplot(dat, aes(x = site, y =Ni_ug_l, fill=site)) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Ni
 
-dev.off()
+#dev.off()
 
 
 #### Pb ####
@@ -490,9 +551,9 @@ dev.off()
 
 
 #### Zn	#### 
-tiff("Zinc_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
+#tiff("Zinc_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-Zn <- ggplot(dat, aes(x = site, y =Zn_ug_l, fill=site)) + 
+Zn <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y =Zn_ug_l, fill=site)) + 
   geom_boxplot(width = 0.9) + 
  # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Zn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
@@ -501,7 +562,7 @@ Zn <- ggplot(dat, aes(x = site, y =Zn_ug_l, fill=site)) +
   theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.text.y = element_text(size=12), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "MM" = "#A2D2FF",  "TP-A" ="#B5E48C") )
 Zn
 
-dev.off()
+#dev.off()
 
 #### combine plots ####
 
@@ -611,5 +672,9 @@ dev.off()
 # The longer the arrow for a variable, the more it influences the principal component. The direction of the arrow shows the correlation with the component, and the length indicates how much it "drives" that component.
 #
 # Variables that point in the same direction (or are aligned) are positively correlated with each other, while those in opposite directions are negatively correlated
+#
+#
+#################################################################################
+#
 
 
