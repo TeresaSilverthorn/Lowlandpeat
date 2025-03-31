@@ -14,17 +14,13 @@ setwd("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Figures")
 #
 #
 # Read in XRF data
-dat1 <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn_2025-02-07.txt")
+dat <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn 2025-03-26_CorrectedLOI.txt")
 #
 head(dat)
-
-# load in corrected and uncorrected and see if any are missing
-
-dat <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn_2025-03-26.txt")
-
+#
 # Make column names based on the first two rows (element, units)
 # And make any other adjustments to the column names
-
+#
 dat <- dat %>%
   {setNames(., paste(.[1, ], .[2, ], sep = "_"))} %>%        # Extract the first two rows for elements and units
   rename_with(~ gsub("Netto Counts", "netto_counts", .)) %>% 
@@ -220,8 +216,8 @@ dat <- dat %>%
 #
 ########
 #
-# Read in the LOI data
-dat_LOI <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/LOI/LOI_all_data_combined_2025-03-17.csv")
+#### Read in the LOI data ####
+dat_LOI <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/LOI/LOI_all_data_combined_2025-03-31.csv")
 #
 head(dat_LOI)  #612 obs
 #
