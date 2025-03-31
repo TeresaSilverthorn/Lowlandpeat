@@ -8,6 +8,11 @@ library(data.table) # for fread
 library(stringr)
 #
 #
+##### NOTES #######
+# Note, XRF / LOI data is missing for MOS 84-98
+#
+#
+##########
 # Site file directory for figures 
 setwd("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Figures")
 #
@@ -35,9 +40,11 @@ dat <- dat %>%
   select(sample_code, site, depth_cm, everything())
 #
 #
-# Replace non numeric values with NAs (cases below detection limits or insufficient sample)
+# Make cases below detection limits 0's
 dat <- dat %>%
-  mutate(across(6:77, ~as.numeric(.), .names = "{.col}")) #NAs introduced error is expected
+  mutate(across(6:77, ~ as.numeric(case_when(
+    str_detect(., "<") ~ "0",  
+    TRUE ~ as.character(.))))) #NAs introduced error is expected
 #
 #
 # Add a column for land use
@@ -73,145 +80,10 @@ dat <- dat %>%
 dat <- dat %>%
   mutate(sample_code = str_replace(sample_code, "MF_", "MF"))
 #
-#
-#
-####################################################################
-# LOI corrected data
-
-dat_cor <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/XRF data/XRF_T.Silverthorn 2025-03-26_CorrectedLOI.txt")
-
-str(dat_cor)
-
-# Make column names based on the first two rows (element, units)
-# And make any other adjustments to the column names
-
-dat_cor <- dat_cor %>%
-  {setNames(., paste(.[1, ], .[2, ], sep = "_"))} %>%        # Extract the first two rows for elements and units
-  rename_with(~ gsub("Netto Counts", "netto_counts", .)) %>% 
-  rename_with(~ gsub("/", "_", .)) %>%
-  rename_with(~ gsub("%", "percent", .)) %>%
-  rename_with(~ gsub("\\?", "u", .)) %>%      # Double check with jenny if the ? is really micro
-  rename_with(~ gsub("_$", "", .)) %>%        # Remove trailing underscores
-  rename(sample_code = "Element_Dimension") %>%
-  mutate(site = str_extract(sample_code, "(?<=LP3\\+\\s)[A-Za-z0-9]{2,}(?=\\d|_|$)"))  %>%   # add a column for site
-  mutate(depth_cm = as.numeric(str_extract(sample_code, "(?<=_)[0-9]+(?=$)"))) %>%      # add a column for depth
-  slice(-1:-2) %>%                                               # Remove the first two columns
-  select(sample_code, site, depth_cm, everything())
-#
-#
-# Replace non numeric values with NAs (cases below detection limits or insufficient sample)
-dat_cor <- dat_cor %>%
-  mutate(across(6:77, ~as.numeric(.), .names = "{.col}")) #NAs introduced error is expected
-#
-#
-# Add a column for land use
-#
-dat_cor$site <- as.factor(dat_cor$site) # make site a factor
-#
-dat_cor <- dat_cor %>%
-  mutate(land_use = case_when(
-    site %in% c("LC", "WFA", "RGR6") ~ "Conventional arable",
-    site %in% c("SW") ~ "Regenerative arable",
-    site %in% c("ND", "MF", "WBF", "RV", "MOS") ~ "Grassland",
-    site %in% c("HF", "WW", "WSF" ) ~ "Semi-natural fen",
-    site %in% c("BM" ) ~ "Rewetted bog",   # Note from Mike this update not semi-natural, but rewetted
-    TRUE ~ "Other"  # Assign "Other" to all other sites (modify as needed)
-  )) %>%                                               # Remove the first two columns
-  select(sample_code, site, land_use, depth_cm, everything())
-#
-#
-#
-# Get maximum depth per site
-max_depth_per_site <- dat_cor %>%
-  group_by(site) %>%
-  summarize(max_depth = max(depth_cm, na.rm = TRUE))
-#
-#
-dat_cor$site <- factor(dat_cor$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RGR6", "WFA", "MF", "MOS", "ND", "RV", "WBF"))
-#
-#
-# Correct error in WW, delete the _ after WW
-dat_cor <- dat_cor %>%
-  mutate(sample_code = str_replace(sample_code, "WW_", "WW"))
-#
-dat_cor <- dat_cor %>%
-  mutate(sample_code = str_replace(sample_code, "MF_", "MF"))
-
-
-# Find missing values
-# Find values in dat but not in dat_cor
-missing_in_dat_cor <- anti_join(dat, dat_cor, by = "sample_code")
-
-# Find values in df2 but not in df1
-missing_in_dat <- anti_join(dat_cor, dat, by = "sample_code")
-
-# Output
-print(missing_in_df2)
-print(missing_in_df1)
-
-
-
-#
-#
-#
-#
-#
-# Make column names based on the first two rows (element, units)
-# And make any other adjustments to the column names
-#
-#
-dat <- dat %>%
-  {setNames(., paste(.[1, ], .[2, ], sep = "_"))} %>%        # Extract the first two rows for elements and units
-  rename_with(~ gsub("Netto Counts", "netto_counts", .)) %>% 
-  rename_with(~ gsub("/", "_", .)) %>%
-  rename_with(~ gsub("%", "percent", .)) %>%
-  rename_with(~ gsub("\\?", "u", .)) %>%      # Double check with jenny if the ? is really micro
-  rename_with(~ gsub("_$", "", .)) %>%        # Remove trailing underscores
-  rename(sample_code = "Element_Dimension") %>%
-  mutate(site = str_extract(sample_code, "(?<=LP3\\+\\s)[A-Za-z0-9]{2,}(?=\\d|_|$)"))  %>%   # add a column for site
-  mutate(depth_cm = as.numeric(str_extract(sample_code, "(?<=_)[0-9]+(?=$)"))) %>%      # add a column for depth
-  slice(-1:-2) %>%                                               # Remove the first two columns
-  select(sample_code, site, depth_cm, everything())
-#
-#
-# Replace non numeric values with NAs (cases below detection limits or insufficient sample)
-dat <- dat %>%
-  mutate(across(6:139, ~as.numeric(.), .names = "{.col}")) #NAs introduced error is expected
-#
-#
-# Add a column for land use
-#
-dat$site <- as.factor(dat$site) # make site a factor
-#
-dat <- dat %>%
-  mutate(land_use = case_when(
-    site %in% c("LC", "WFA", "RGR6") ~ "Conventional arable",
-    site %in% c("SW") ~ "Regenerative arable",
-    site %in% c("ND", "MF", "WBF", "RV", "MOS") ~ "Grassland",
-    site %in% c("HF", "WW", "WSF" ) ~ "Semi-natural fen",
-    site %in% c("BM" ) ~ "Rewetted bog",   # Note from Mike this update not semi-natural, but rewetted
-    TRUE ~ "Other"  # Assign "Other" to all other sites (modify as needed)
-  )) %>%                                               # Remove the first two columns
-  select(sample_code, site, land_use, depth_cm, everything())
-#
-#
-#
-# Get maximum depth per site
-max_depth_per_site <- dat %>%
-  group_by(site) %>%
-  summarize(max_depth = max(depth_cm, na.rm = TRUE))
-#
-#
-dat$site <- factor(dat$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RGR6", "WFA", "MF", "MOS", "ND", "RV", "WBF"))
-#
-#
-# Correct error in WW, delete the _ after WW
-dat <- dat %>%
-  mutate(sample_code = str_replace(sample_code, "WW_", "WW"))
-#
-dat <- dat %>%
-  mutate(sample_code = str_replace(sample_code, "MF_", "MF"))
-
+# Get rid of duplicates with "(1)"
+dat <- dat %>% 
+  filter(!str_detect(sample_code, "\\(1\\)"))  # Remove rows where sample_code includes (1)
+#717-628 #lost 89 rows
 #
 #
 ########
@@ -219,7 +91,7 @@ dat <- dat %>%
 #### Read in the LOI data ####
 dat_LOI <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/LOI/LOI_all_data_combined_2025-03-31.csv")
 #
-head(dat_LOI)  #612 obs
+head(dat_LOI)  #625 obs
 #
 # Rename id
 colnames(dat_LOI)[colnames(dat_LOI) == "id"] <- "sample_code"
@@ -232,15 +104,7 @@ dat <- dat %>%
   full_join(dat_LOI, by = "sample_code") %>%
   select(sample_code, site, land_use, depth_cm, percent_loi, percent_moisture, everything()) 
 #
-# Fore sites that have LOI data but no matching XRF data, we need to add site, land use and depth
-dat <- dat %>%
-  mutate(
-    site = if_else(is.na(site) & str_detect(sample_code, "HF"), "HF", site),
-    land_use = if_else(site == "HF" & is.na(land_use), "Semi-natural fen", land_use),
-    depth_cm = if_else(site == "HF" & is.na(depth_cm), 
-                       as.numeric(str_extract(sample_code, "[^_]+$")), 
-                       depth_cm)  )
-#
+# For sites that have LOI data but no matching XRF data, we need to add site, land use and depth
 dat <- dat %>%
   mutate(
     site = if_else(is.na(site) & str_detect(sample_code, "MOS"), "MOS", site),
@@ -248,17 +112,6 @@ dat <- dat %>%
     depth_cm = if_else(site == "MOS" & is.na(depth_cm), 
                        as.numeric(str_extract(sample_code, "[^_]+$")), 
                        depth_cm)  )
-#
-dat <- dat %>%
-  mutate(
-    site = if_else(is.na(site) & str_detect(sample_code, "WSF"), "WSF", site),
-    land_use = if_else(site == "WSF" & is.na(land_use), "Semi-natural fen", land_use),
-    depth_cm = if_else(site == "WSF" & is.na(depth_cm), 
-                       as.numeric(str_extract(sample_code, "[^_]+$")), 
-                       depth_cm)  )
-
-
-
 #
 #
 # Clean LOI values: remove negatives and large values
@@ -305,6 +158,11 @@ dat$site <- factor(dat$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RG
 # Reorder land use levels
 dat$land_use <- factor(dat$land_use, levels = c("Rewetted bog", "Semi-natural fen", "Regenerative arable", "Conventional arable", "Grassland" ))
 #
+# There is something going on with BM - 4 cm : Fran calculated 100% LOI and the XRF 0... causing some issues, so delete
+dat <- subset(dat, sample_code != "LP3+ BM1.1_4")
+# Also HF 1.1 - 22 cm, Fran calculated 93 white the XRF 0.....
+dat <- subset(dat, sample_code != "LP3+ HF1.1_22")
+#
 #
 ################################################################################
 #### Check LOI ####
@@ -328,17 +186,19 @@ summary_loi_by_site <- dat %>% # mean and min LOI by site
 tiff("LOI_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
 LOI_all <- ggplot(subset(dat, !is.na(site)), aes(y = percent_loi, x = depth_cm)) +
-  geom_rect(data = subset(dat, !is.na(site)), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +  geom_point(size=1.5, alpha=0.7) +    #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
-  labs(y = "LOI (%)", x = "Depth (cm)") +
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
+   labs(y = "LOI (%)", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
-  theme_minimal() +   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"), legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 LOI_all
 #
 dev.off()
 #
+
 #
 #
 #### Plot % moisture ####
@@ -347,20 +207,20 @@ dev.off()
 tiff("moisture_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
 moisture_all <- ggplot(subset(dat, !is.na(site)), aes(y = percent_moisture, x = depth_cm)) +
-  geom_rect(data = subset(dat, !is.na(site)), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +  geom_point(size=1.5, alpha=0.7) +    #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Moisture (%)", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
-  theme_minimal() +   theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"), legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 moisture_all
 #
 dev.off()
 #
 ##### Plots ##################################
 #
-# For now, exclude HF, because you only have about 10cm of data....
 #
 #
 #### Fe, Cu, Zn and Pb, are indicative of industrial pollution (Turner et al 2014) ####
@@ -383,18 +243,15 @@ Pb_MOS
 #
 tiff("Pb_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Pb_all <- ggplot(subset(dat, site!="HF"), aes(y = Pb_ug_g, x = depth_cm)) +
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-  geom_point(size=1.5, alpha=0.7) +  
-  #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Pb_all <- ggplot(subset(dat, !is.na(site)),  aes(y = Pb_ug_g, x = depth_cm)) +
+geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Pb", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal() + 
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Pb_all
 #
 dev.off()
@@ -405,18 +262,15 @@ dev.off()
 #
 tiff("Zn_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Zn_all <- ggplot(subset(dat, site!="HF"), aes(y = Zn_ug_g, x = depth_cm)) +
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-  geom_point(size=1.5, alpha=0.7) + 
-  #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Zn_all <- ggplot(subset(dat, !is.na(site)), aes(y = Zn_ug_g, x = depth_cm)) +
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Zn", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal() +  # Use a minimal theme for a clean look
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Zn_all
 #
 dev.off()
@@ -427,16 +281,15 @@ dev.off()
 #
 tiff("Fe_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Fe_all <- ggplot(subset(dat, site!="HF"), aes(y = Fe_mg_g, x = depth_cm)) +
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-  geom_point(size=1.5, alpha=0.7) +   
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Fe_all <- ggplot(subset(dat, !is.na(site)), aes(y = Fe_mg_g, x = depth_cm)) +
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Fe", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal()  +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1),  axis.ticks.x = element_line(), axis.ticks.y = element_line()) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Fe_all
 #
 dev.off()
@@ -447,15 +300,15 @@ dev.off()
 #
 tiff("Cu_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Cu_all <- ggplot(subset(dat, site!="HF"), aes(y = Cu_ug_g, x = depth_cm)) +
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +  geom_point(size=1.5, alpha=0.7) +  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Cu_all <- ggplot(subset(dat, !is.na(site)), aes(y = Cu_ug_g, x = depth_cm)) +
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Cu", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal()  +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1), panel.background = element_blank()) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Cu_all
 #
 dev.off()
@@ -466,15 +319,15 @@ dev.off()
 #
 tiff("Hg_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Hg_all <- ggplot(subset(dat, site!="HF"), aes(y = Hg_ug_g, x = depth_cm)) +
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +  geom_point(size=1.5, alpha=0.7) +  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Hg_all <- ggplot(subset(dat, !is.na(site)), aes(y = Hg_ug_g, x = depth_cm)) +
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Hg", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal()  +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1), panel.background = element_blank()) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Hg_all
 #
 dev.off()
@@ -488,18 +341,15 @@ dev.off()
 #
 tiff("P_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-P_all <- ggplot(subset(dat, site!="HF"), aes(y = P_mg_g, x = depth_cm)) +
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-  geom_point(size=1.5, alpha=0.7) +  
-  #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+P_all <- ggplot(subset(dat, !is.na(site)), aes(y = P_mg_g, x = depth_cm)) +
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "P", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal()  +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line()) +
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 P_all
 #
 dev.off()
@@ -510,17 +360,15 @@ dev.off()
 #
 tiff("K_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-K_all <- ggplot(subset(dat, site!="HF"), aes(y = K_mg_g, x = depth_cm)) + 
-  geom_rect(data = subset(dat, site!="HF"), aes(fill = land_use), xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-  geom_point(size=1.5, alpha=0.7) +   
-  #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+K_all <- ggplot(subset(dat, !is.na(site)), aes(y = K_mg_g, x = depth_cm)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "K", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal() +
-  theme(legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line()) +   scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") )
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 K_all
 #
 dev.off()
