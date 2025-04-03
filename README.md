@@ -1,4 +1,4 @@
-# R scripts associated with data-processing for the LowlandPeat 3 project 
+# R scripts associated with data-processing for the LowlandPeat3 project 
 
 Includes scripts for LP3+ 
 LP3+_peat_core_XRF
