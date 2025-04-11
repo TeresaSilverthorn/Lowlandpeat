@@ -9,11 +9,20 @@ library(lubridate)
 library(ggpubr)
 library(cowplot)
 library(scales)
+library(ggrepel)
+#
+#
 #
 #
 # Set working directory for figures
 setwd("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Figures")
 #
+#
+# Check how many samples have been analysed
+sample_list <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Ancil dat/Sites to sample_TS.xlsx", sheet="Data")
+#
+sum(!is.na(sample_list$`Analysed?`))# count how many have been analysed
+(166/324)*100
 #
 # load in data
 #
@@ -21,7 +30,7 @@ dat1 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality dat
 #
 head(dat1)  
 #
-dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C112 20250325_TS.xlsx", range= "A10:AJ48")
+dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C112 20250325_TS.xlsx", range= "A10:AJ48")   # I am not sure about the dates on this one, need to double check
 #
 head(dat2)
 #
@@ -33,6 +42,13 @@ head(dat3)
 dat4 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C114 20250331_TS.xlsx", range= "A10:AK45")
 #
 head(dat4)
+#
+#
+dat5 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C105 INTERIM 20250410_TS.xlsx", range= "A10:AJ97")
+#
+head(dat5) #remove the * in P (over range, estimated)
+# NOTE : can classiffy leighton moss as semi-natural fen (originally  fen/reed bed); can classify win carbon farm as rewetted extraction (oroginally paludiculture). There is an "Adnesy South?" value that needs to be investigated
+
 #
 #
 #replace non numeric values (with <) with zeros and NA for cases below detection limits or insufficient sample)
@@ -59,6 +75,15 @@ dat4 <- dat4 %>%
     str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
     TRUE ~ as.character(.))))) 
 #
+#
+dat5 <- dat5 %>%
+  mutate(across(7:36, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value
+  mutate(across(7:36, ~ as.numeric(case_when(
+    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
+    TRUE ~ as.character(.)))))  %>%  
+ filter(sample_code != "C105-47")      # remove row with missing value
+#
+#
 #You will get an NA's introduced by coercion error, this is fine as any cells with i.s., or nd will be replaced with NA
 #
 #
@@ -75,9 +100,9 @@ dat3 <- dat3 %>% filter(!grepl("delete", notes))
 #
 #combine
 #
-dat <- bind_rows(dat1, dat2, dat3, dat4)
+dat <- bind_rows(dat1, dat2, dat3, dat4, dat5)
 #
-str(dat) #157 obs of 43 vars
+str(dat) #243 obs of 43 vars
 #
 #
 #
@@ -99,6 +124,11 @@ mutate(month = floor_date(date, unit = "month"))
 # As per latest update, amalgate Grassland and Grassland/raised WTs land use
 levels(dat$land_use)[levels(dat$land_use) == "Grassland/raised WTs"] <- "Grassland"
 #
+# To better align with the other broader categories, make leighton moss as semi-natural fen (originally  fen/reed bed); can classify win carbon farm as rewetted extraction (oroginally paludiculture)
+levels(dat$land_use)[levels(dat$land_use) == "Paludiculture"] <- "Rewetted extraction"
+levels(dat$land_use)[levels(dat$land_use) == "Fen/reed bed"] <- "Semi-natural fen"
+#
+#
 # Determine which data is a part of repeated sampling and which is synoptic
 df_counts <- dat %>%
   group_by(site) %>%
@@ -119,6 +149,10 @@ dat <- dat %>%
 #  group_by(site, month, land_use) %>%
 #  summarise(Count = n(), .groups = "drop") 
 #
+#
+# For plotting, remove the site=NA, for "Adney South?" until you confirm this site
+dat <- dat %>%
+  filter(!is.na(site))
 #
 # reorder columns and save file
 #
@@ -173,22 +207,43 @@ pH
 
 #dev.off()
 
-
-tiff("LP3+_water_quality_pH_time.tiff", units="in", width=6.5, height=4, res=300)
-
-pH_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = pH, colour = land_use)) +
+pH_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = pH, colour = land_use )) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
   stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = "pH", colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.title = element_text(size = 14),  axis.text.y = element_text(size = 12), legend.title = element_blank(),  axis.title.x = element_blank()) + 
-  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
-scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
-                             "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
-                            "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
-                            "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
-
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") +
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 pH_time
+#
+#
+#
+# Create a new dataframe to select the first sample for each site
+dat_labels_pH <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(pH = mean(pH, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup() 
 
-dev.off()
+
+pH_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = pH, colour = land_use, group = interaction(site, land_use) )) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = "pH", colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.title = element_text(size = 14),  axis.text.y = element_text(size = 12), legend.title = element_blank(),  axis.title.x = element_blank()) + 
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") +
+scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                            "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                            "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                            "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_pH, aes(label = site), size = 3, colour = "black", box.padding = 0.35, 
+                  max.overlaps = 10) 
+pH_time2
+
+#dev.off()
 
 
 #### EC ####
@@ -218,8 +273,33 @@ EC_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 EC_time
-
-
+#
+#
+#
+# Create a new dataframe to select the first sample for each site
+dat_labels_EC <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(EC_us_cm = mean(EC_us_cm, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+EC_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = EC_us_cm, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+ # geom_text(data = dat_labels_EC, aes(label = site), size = 3, hjust = 0.5, vjust = -0.5, colour = "black")
+  geom_text_repel(data = dat_labels_EC, aes(label = site), size = 3, colour = "black", box.padding = 0.35, 
+                  max.overlaps = 10) 
+EC_time2
+#
+#
 #### Fluoride ####
 
 #tiff("LP3+_water_quality_Fluoride.tiff", units="in", width=6.5, height=4, res=300)
@@ -259,6 +339,29 @@ Cl_time <-  ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Cl_time
+#
+#
+#
+dat_labels_Cl <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Cl_mg_l = mean(Cl_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Cl_time2 <-  ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Cl_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Cl- (mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)   +
+geom_text_repel(data = dat_labels_Cl, aes(label = site), size = 3, colour = "black", box.padding = 0.35, 
+ max.overlaps = 10) 
+Cl_time2
 
 #### Nitrite	#### 
 #tiff("LP3+_water_quality_NO2.tiff", units="in", width=6.5, height=4, res=300)
@@ -286,6 +389,29 @@ NO2_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) 
 NO2_time
+#
+#
+#
+dat_labels_NO2 <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(NO2_mg_l = mean(NO2_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+NO2_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NO2_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(NO[2]^"-" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_NO2, aes(label = site), size = 3, colour = "black", box.padding = 0.35, 
+                  max.overlaps = 10) 
+NO2_time2
 
 #### Nitrate ####
 
@@ -310,9 +436,30 @@ NO3_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) 
 NO3_time
-
-#dev.off()
-
+#
+#
+#
+dat_labels_NO3 <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(NO3_mg_l = mean(NO3_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+NO3_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NO3_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)  +
+  geom_text_repel(data = dat_labels_NO3, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 15) 
+NO3_time2
+#
+#
 #### Bromine (in the excel its Bromide which is the ion) ####
 
 #tiff("LP3+_water_quality_Br.tiff", units="in", width=6.5, height=4, res=300)
@@ -346,7 +493,7 @@ PO4
 #dev.off()
 #
 #
-PO4_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NO3_mg_l, colour = land_use)) +
+PO4_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = PO4_mg_l, colour = land_use)) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
   stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(PO[4]^"3-" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
@@ -356,6 +503,28 @@ PO4_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 PO4_time
+#
+#
+#
+dat_labels_PO4 <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(PO4_mg_l = mean(PO4_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+PO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = PO4_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(PO[4]^"3-" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+geom_text_repel(data = dat_labels_PO4, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+PO4_time2
 
 #### Sulfate	#### 
 
@@ -380,9 +549,35 @@ SO4_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 SO4_time
-
-#dev.off()
-
+#
+#
+#
+#
+dat_labels_SO4 <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(SO4_mg_l = mean(SO4_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+tiff("LP3+_water_quality_SO4_time2.tiff", units="in", width=6.5, height=4, res=300)
+#
+SO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = SO4_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(SO[4]^"2-" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_SO4, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+SO4_time2
+#
+dev.off()
+#
+#
 #### NPOC ####
 
 NPOC <- ggplot(dat, aes(x = land_use, y =NPOC_mg_l,  fill = land_use)) + # Use fill for land use categories
@@ -471,6 +666,29 @@ Na_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Na_time
+#
+#
+#
+#
+dat_labels_Na <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Na_mg_l = mean(Na_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Na_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Na_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Na (mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)   +
+  geom_text_repel(data = dat_labels_Na, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Na_time2
 
 #### Ammonium	####
 
@@ -500,6 +718,29 @@ NH4_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 NH4_time
+#
+#
+#
+#
+dat_labels_NH4 <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(NH4_mg_l = mean(NH4_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+NH4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NH4_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)   + 
+  geom_text_repel(data = dat_labels_NH4, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+NH4_time2
 
 #### Magnesium	#### 
 
@@ -525,6 +766,29 @@ Mg_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Mg_time
+#
+#
+#
+#
+dat_labels_Mg <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Mg_mg_l = mean(Mg_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Mg_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Mg_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Mg (mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+geom_text_repel(data = dat_labels_Mg, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Mg_time2
 
 
 #### Potassium	#### 
@@ -536,6 +800,7 @@ K <- ggplot(dat, aes(x = land_use, y =K_mg_l,  fill = land_use)) + # Use fill fo
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   labs(y = expression("K (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 100), labels = scales::number)+
   theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12),
 K
 #dev.off()
@@ -552,10 +817,30 @@ K_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 K_time
-
-
-
-
+#
+#
+#
+#
+dat_labels_K <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(K_mg_l = mean(K_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+K_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = K_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("K (mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_K, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+K_time2
+#
 #### Calcium	#### 
 
 #tiff("LP3+_water_quality_Ca.tiff", units="in", width=6.5, height=4, res=300)
@@ -581,7 +866,30 @@ Ca_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Ca_time
-
+#
+#
+#
+#
+dat_labels_Ca <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Ca_mg_l = mean(Ca_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Ca_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Ca_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Ca (mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_Ca, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Ca_time2
+#
 #### Al	#####
 
 #tiff("LP3+_water_quality_Al.tiff", units="in", width=6.5, height=4, res=300)
@@ -606,8 +914,29 @@ Al_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Al_time
-
-
+#
+#
+#
+#
+dat_labels_Al <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Al_ug_l = mean(Al_ug_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Al_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Al_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Al (µg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +   scale_x_datetime(date_labels = "%b", date_breaks = "1 month") +  
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_Al, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Al_time2
+#
 #### As ####
 
 #tiff("LP3+_water_quality_As.tiff", units="in", width=6.5, height=4, res=300)
@@ -617,6 +946,7 @@ As <- ggplot(dat, aes(x = land_use, y =As_ug_l,  fill = land_use)) + # Use fill 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   labs(y = expression("As (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme  
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 50, 100), labels = scales::number)+
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 As  #element_text(angle = 45, hjust = 1, size=12),
 
@@ -663,8 +993,30 @@ Cr_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) 
 Cr_time
-
-
+#
+#
+#
+#
+dat_labels_Cr <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Cr_ug_l = mean(Cr_ug_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Cr_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Cr_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Cr (µg l"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)  +
+  geom_text_repel(data = dat_labels_Cr, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Cr_time2
+#
 #### Cu	####
 
 #tiff("LP3+_water_quality_Cu.tiff", units="in", width=6.5, height=4, res=300)
@@ -689,6 +1041,29 @@ Cu_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Cu_time
+#
+#
+#
+#
+dat_labels_Cu <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Cu_ug_l = mean(Cu_ug_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Cu_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Cu_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Cu (µg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_Cu, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Cu_time2
 
 
 #### Fe	#### 
@@ -719,6 +1094,30 @@ Fe_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Fe_time
+#
+#
+#
+#
+dat_labels_Fe <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Fe_ug_l = mean(Fe_ug_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Fe_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Fe_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Fe (µg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_Fe, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Fe_time2
+
 #### Inorganic Carbon ####
 
 #tiff("LP3+_water_quality_IC.tiff", units="in", width=6.5, height=4, res=300)
@@ -761,8 +1160,30 @@ Mn_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Mn_time
-
-
+#
+#
+#
+#
+dat_labels_Mn <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Mn_ug_l = mean(Mn_ug_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Mn_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Mn_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Mn (µg L"^-1*")"),  colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+geom_text_repel(data = dat_labels_Mn, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Mn_time2
+#
 #### Ni	#### 
 
 #tiff("LP3+_water_quality_Ni.tiff", units="in", width=6.5, height=4, res=300)
@@ -772,6 +1193,7 @@ Ni <- ggplot(dat, aes(x = land_use, y =Ni_ug_l,  fill = land_use)) + # Use fill 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   labs(y = expression("Ni (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 5, 10, 20, 50), labels = scales::number)+
   theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
 Ni
 #dev.off()
@@ -787,7 +1209,30 @@ Ni_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Ni_time
-
+#
+#
+#
+#
+dat_labels_Ni <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Ni_ug_l = mean(Ni_ug_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Ni_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Ni_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Ni (µg L"^-1*")"),  colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_Ni, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Ni_time2
+#
 #### Pb ####	
 
 #tiff("LP3+_water_quality_Pb.tiff", units="in", width=6.5, height=4, res=300)
@@ -846,10 +1291,30 @@ P_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 P_time
-
-
-
-
+#
+#
+#
+#
+dat_labels_P <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(P_mg_l = mean(P_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+P_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = P_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("P (mg L"^-1*")"),  colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+  geom_text_repel(data = dat_labels_P, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+P_time2
+#
 #### Si ####
 #tiff("LP3+_water_quality_Si.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -875,8 +1340,30 @@ Si_time  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
 Si_time
-
-
+#
+#
+#
+#
+dat_labels_Si <- dat %>%
+  filter(sampling_frequency == "repeated") %>%
+  group_by(site, land_use, month) %>%
+  summarise(Si_mg_l = mean(Si_mg_l, na.rm = TRUE), .groups = "drop") %>%
+  group_by(site, land_use) %>%
+  slice_min(order_by = month, n = 1) %>%
+  ungroup()
+#
+Si_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Si_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Si (mg l"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
+geom_text_repel(data = dat_labels_Si, aes(label = site), size = 3, colour = "black", box.padding = 0.35, max.overlaps = 20) 
+Si_time2
+#
 #### combine plots ####
 # use cowplot bc ggarrange spacing is weird (too much white space)
 
@@ -922,17 +1409,44 @@ dev.off()
 # Use ggarrange as it allows for an easy common legend
 
 jpeg("LP3+_water_quality_timeseries1.jpeg", units="in", width=10, height=12, res=200)
-time_series1 <- ggarrange(Al_time, Ca_time, Cr_time, Cu_time, 
+time_series_a <- ggarrange(Al_time, Ca_time, Cr_time, Cu_time, 
                      EC_time, Fe_time, K_time, Mg_time, Mn_time, Na_time,
                       ncol = 2, nrow=5,  align = "v", common.legend=T )
-time_series1
+time_series_a
 dev.off() # the semi natural bog and grassland colour does not appear, might have to add manually in Illustrator (might get fixed once you have more data)
 
 jpeg("LP3+_water_quality_timeseries2.jpeg", units="in", width=10, height=12, res=200)
-time_series2 <- ggarrange(NH4_time, Ni_time, NO2_time, NO3_time, 
-                          P_time, pH_time, PO4_time, Si_time, SO4_time,
+time_series_b <- ggarrange(NH4_time, Ni_time, NO2_time, NO3_time, 
+                          P_time, pH_time2, PO4_time, Si_time, SO4_time,
                           ncol = 2, nrow=5,  align = "v", common.legend=T )
-time_series2
+time_series_b
 dev.off()  # the semi natural bog colour does not appear, might have to add manually in Illustrator
+#
+#
+#
+# Time series with site labels
+#
+jpeg("LP3+_water_quality_timeseries_site1.jpeg", units="in", width=10, height=11, res=200)
+time_series_1 <- ggarrange(Al_time2, Ca_time2, Cr_time2, Cu_time2, EC_time2, Fe_time2,
+                           ncol = 2, nrow=3,  align = "v", common.legend=T )
+time_series_1
+dev.off() 
+
+
+
+jpeg("LP3+_water_quality_timeseries_site2.jpeg", units="in", width=12, height=14, res=200)
+time_series_2 <- ggarrange(  K_time2, Mg_time2, Mn_time2, Na_time2,  NH4_time2, Ni_time2, 
+                          ncol = 2, nrow=3,  align = "v", common.legend=T )
+time_series_2
+dev.off()
+
+
+jpeg("LP3+_water_quality_timeseries_site3.jpeg", units="in", width=12, height=14, res=200)
+time_series_3 <- ggarrange( NO2_time2, NO3_time2, P_time2, pH_time2, PO4_time2, Si_time2, 
+                             ncol = 2, nrow=3,  align = "v", common.legend=T )
+time_series_3
+dev.off()
+
+# SO4_time2,
 
 
