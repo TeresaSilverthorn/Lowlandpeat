@@ -48,7 +48,11 @@ dat5 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality dat
 #
 head(dat5) #remove the * in P (over range, estimated)
 # NOTE : can classiffy leighton moss as semi-natural fen (originally  fen/reed bed); can classify win carbon farm as rewetted extraction (oroginally paludiculture). There is an "Adnesy South?" value that needs to be investigated
-
+#
+#
+dat6 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C103 INTERIM 20250410_TS.xlsx", range= "A10:AK15")
+#
+head(dat6)
 #
 #
 #replace non numeric values (with <) with zeros and NA for cases below detection limits or insufficient sample)
@@ -84,6 +88,13 @@ dat5 <- dat5 %>%
  filter(sample_code != "C105-47")      # remove row with missing value
 #
 #
+dat6 <- dat6 %>%
+  mutate(across(8:37, ~ as.numeric(case_when(
+    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
+    TRUE ~ as.character(.))))) 
+#
+#
+#
 #You will get an NA's introduced by coercion error, this is fine as any cells with i.s., or nd will be replaced with NA
 #
 #
@@ -100,9 +111,9 @@ dat3 <- dat3 %>% filter(!grepl("delete", notes))
 #
 #combine
 #
-dat <- bind_rows(dat1, dat2, dat3, dat4, dat5)
+dat <- bind_rows(dat1, dat2, dat3, dat4, dat5, dat6)
 #
-str(dat) #243 obs of 43 vars
+str(dat) #248 obs of 43 vars
 #
 #
 #
@@ -1396,7 +1407,7 @@ dev.off()
 #
 #
 jpeg("LP3+_water_quality3.jpeg", units="in", width=10, height=12, res=300)
-#
+
 combine3 <- plot_grid(pH, Pb,
                       PO4, Si, SO4, TC, TN, TOC, Zn,  
                       ncol = 2, align = "v", rel_heights = c( 1,1,1, 1, 1.6)) 
