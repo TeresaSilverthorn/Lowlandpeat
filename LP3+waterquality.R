@@ -14,6 +14,9 @@ library(lme4)
 library(lmerTest)
 library(tidyr)
 library(ggtern)
+library(factoextra)
+library(data.table)
+library(maps)
 #
 #
 #
@@ -42,7 +45,7 @@ head(dat2)
 #
 dat3 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C102 20250306_TS.xlsx", range= "A10:AK64")
 #
-head(dat3)
+
 #
 #
 dat4 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C114 20250331_TS.xlsx", range= "A10:AK45")
@@ -385,13 +388,36 @@ dat$site_label <- sapply(dat$site_label, function(x) {
 })
 # Ask Mike about Roughs Roughs Catchwater Upper July and Catchwater Lower July (which is east/west)
 #
+#
+# Load in rough site level coordinates, and match them to dat by site 
+coords <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Ancil dat/sample_site_coordinates.csv", encoding = "Latin-1")
+#
+# Join coords onto dat by 'Site'
+dat <- merge(dat, coords[, .(site, lat, lon)], by = "site", all.x = TRUE)
+#
 # reorder columns and save file
 #
 dat <- dat %>% select(sample_code, site_label, site, date, month, land_use, sampling_frequency, coordinates, notes, everything())
 #
 write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/LP3+_wq_dat_combined.csv")
 #
-############
+###################################################################################
+# Read in Hg data
+#
+mercury <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Mercury/Mercury Hg results_TS.csv")
+#
+# Make values below LoD as "0"
+mercury <- mercury %>%
+  mutate(Hg_ug_l = if_else(FINAL <= 0.010, 0, FINAL))
+#
+# Add coordinates so you can spatially plot Hg
+mercury <- merge(mercury, coords[, .(site, lat, lon)], by = "site", all.x = TRUE)
+#
+# What percentage are <LOD? 
+mercury %>%
+  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE) / n() * 100)) -> zero_percent
+#
+####################################################################
 #
 #plots#
 #
@@ -422,18 +448,32 @@ summary_dat <- dat %>%
 #
 #
 #
+# Number of sites
+n_distinct(dat$site)
+#
+dat %>%
+  group_by(sampling_frequency) %>%
+  summarise(
+    n_sites = n_distinct(site),
+    n_observations = n()   )
+#
+# lake/pond/mere samples
+non_ditch <- subset(dat, grepl("lake|pond", site_label, ignore.case = TRUE))
+sum(grepl("lake|pond", dat$site_label, ignore.case = TRUE))
+
+
 #### pH ####
 
 
 #tiff("LP3+_water_quality_pH.tiff", units="in", width=6.5, height=4, res=300)
 
-pH <- ggplot(dat, aes(x = land_use, y = pH, fill = land_use)) + # Use fill for land use categories
+pH <- ggplot(dat, aes(x= fct_reorder (land_use, pH,  .fun = median, .na_rm = TRUE), y=pH, fill = land_use) ) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs( y = "pH",  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),, panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) #element_text(angle = 45, hjust = 1, size=12)
 pH
 
@@ -482,13 +522,13 @@ pH_time2
 
 #tiff("LP3+_water_quality_EC.tiff", units="in", width=6.5, height=4, res=300)
 
-EC <- ggplot(dat, aes(x = land_use, y = EC_us_cm, fill = land_use)) + # Use fill for land use categories
+EC <-   ggplot(dat, aes(x= fct_reorder (land_use, EC_us_cm,  .fun = median, .na_rm = TRUE), y=EC_us_cm, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(  y = expression("Conductivity (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme(legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
+  theme(legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #
 EC
 
 #dev.off()
@@ -536,7 +576,7 @@ EC_time2
 #### Fluoride ####
 
 #tiff("LP3+_water_quality_Fluoride.tiff", units="in", width=6.5, height=4, res=300)
-Fluo <- ggplot(dat, aes(x = land_use, y = F_mg_l, fill = land_use)) + # Use fill for land use categories
+Fluo <-   ggplot(dat, aes(x= fct_reorder (land_use, F_mg_l,  .fun = median, .na_rm = TRUE), y=F_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
@@ -552,14 +592,15 @@ Fluo
 
 #tiff("LP3+_water_quality_Chloride.tiff", units="in", width=6.5, height=4, res=300)
 
-Cl <- ggplot(dat, aes(x = land_use, y =Cl_mg_l,  fill = land_use)) + # Use fill for land use categories
+Cl <-   ggplot(dat, aes(x= fct_reorder (land_use, Cl_mg_l,  .fun = median, .na_rm = TRUE), y=Cl_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Cl- (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) +  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Cl
+# (Semi-natural bog) - Grassland 0.0316
 #dev.off()
 #
 #
@@ -601,7 +642,7 @@ Cl_time2
 #### Nitrite	#### 
 #tiff("LP3+_water_quality_NO2.tiff", units="in", width=6.5, height=4, res=300)
 
-NO2 <- ggplot(dat, aes(x = land_use, y =NO2_mg_l,  fill = land_use)) + # Use fill for land use categories
+NO2 <- ggplot(dat, aes(x = land_use, y =NO2_mg_l,  fill = land_use)) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
@@ -609,7 +650,7 @@ NO2 <- ggplot(dat, aes(x = land_use, y =NO2_mg_l,  fill = land_use)) + # Use fil
   theme_minimal() + # Clean theme
   #scale_y_log10() + # the 0s cause an error with the log transformation
   scale_y_continuous(trans = 'pseudo_log') +
-  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 NO2
 #dev.off()    
 #
@@ -659,7 +700,13 @@ NO3 <- ggplot(dat, aes(x = land_use, y =NO3_mg_l,  fill = land_use)) + # Use fil
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))   + annotate("text", x =1, y = 160 , label = "a", size=3) + 
+  annotate("text", x =2, y = 160 , label = "a", size=3) +
+  annotate("text", x =3, y = 160 , label = "a", size=3) +
+  annotate("text", x =4, y = 160 , label = "a", size=3) +
+  annotate("text", x =5, y = 160 , label = "a", size=3) +
+  annotate("text", x =6, y = 160 , label = "b", size=3) +
+  annotate("text", x =7, y = 160 , label = "b", size=3)
 NO3    #element_text(angle = 45, hjust = 1, size=12), 
 #
 #
@@ -711,6 +758,7 @@ NO3_time2
 #dev.off() # Br data not available in the updated OU data files
 #
 #
+
 #### Phosphate	####
 
 
@@ -725,7 +773,7 @@ PO4 <- ggplot(dat, aes(x = land_use, y =PO4_mg_l,  fill = land_use)) + # Use fil
  # scale_y_log10() + 
   scale_y_continuous(trans = 'pseudo_log') +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x =element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + 
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  # element_text(angle = 45, hjust = 1, size=12), 
 PO4
 #dev.off()
@@ -768,13 +816,13 @@ PO4_time2
 
 #tiff("LP3+_water_quality_SO4.tiff", units="in", width=6.5, height=4, res=300)
 
-SO4 <- ggplot(dat, aes(x = land_use, y =SO4_mg_l,  fill = land_use)) + # Use fill for land use categories
+SO4 <-   ggplot(dat, aes(x= fct_reorder (land_use, SO4_mg_l,  .fun = median, .na_rm = TRUE), y=SO4_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression(SO[4]^"2-" ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")  ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), , panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")  ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #
 SO4
 #
 #
@@ -826,9 +874,14 @@ DOC <- ggplot(dat, aes(x = land_use, y =NPOC_mg_l,  fill = land_use)) + # Use fi
   labs(y = expression("DOC (mg L"^-1*")"), x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(10, 100, 600), labels = scales::number)+
-  theme( axis.text.x = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")  ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
-DOC
-
+  theme( axis.text.x = element_text(angle = 45, hjust = 1, size=12), legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")  ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) + annotate("text", x =1, y = 700 , label = "ab", size=3) + 
+  annotate("text", x =2, y = 700 , label = "ab", size=3) +
+  annotate("text", x =3, y = 700 , label = "a", size=3) +
+  annotate("text", x =4, y = 700 , label = "a", size=3) +
+  annotate("text", x =5, y = 700 , label = "ab", size=3) +
+  annotate("text", x =6, y = 700 , label = "ab", size=3) +
+  annotate("text", x =7, y = 700 , label = "b", size=3) 
+DOC  # pairwise sig diffs: Grassland - (River/HLC) p = 0.0015        Rewetted bog - (River/HLC) p = 0.0213
 
 # NPOC_time only 2 dates, so wait until more data 
 
@@ -880,13 +933,13 @@ TN
 
 #tiff("LP3+_water_quality_Na.tiff", units="in", width=6.5, height=4, res=300)
 
-Na <- ggplot(dat, aes(x = land_use, y =Na_mg_l,  fill = land_use)) + # Use fill for land use categories
-  geom_boxplot(outlier.shape = NA) + 
+Na <-   ggplot(dat, aes(x= fct_reorder (land_use, Na_mg_l,  .fun = median, .na_rm = TRUE), y=Na_mg_l, fill = land_use) ) +
+    geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Na (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Na
 #dev.off()
 #
@@ -982,13 +1035,13 @@ NH4_time2
 
 #tiff("LP3+_water_quality_Mg.tiff", units="in", width=6.5, height=4, res=300)
 
-Mg <- ggplot(dat, aes(x = land_use, y =Mg_mg_l,  fill = land_use)) + # Use fill for land use categories
+Mg <-   ggplot(dat, aes(x= fct_reorder (land_use, Mg_mg_l,  .fun = median, .na_rm = TRUE), y=Mg_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Mg (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
 Mg
 #dev.off()
 #
@@ -1032,14 +1085,14 @@ Mg_time2
 
 #tiff("LP3+_water_quality_K.tiff", units="in", width=6.5, height=4, res=300)
 
-K <- ggplot(dat, aes(x = land_use, y =K_mg_l,  fill = land_use)) + # Use fill for land use categories
+K <-   ggplot(dat, aes(x= fct_reorder (land_use, K_mg_l,  .fun = median, .na_rm = TRUE), y=K_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("K (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 100), labels = scales::number)+
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12),
+  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12),
 K
 #dev.off()
 #
@@ -1083,14 +1136,25 @@ K_time2
 
 #tiff("LP3+_water_quality_Ca.tiff", units="in", width=6.5, height=4, res=300)
 
-Ca <- ggplot(dat, aes(x = land_use, y =Ca_mg_l,  fill = land_use)) + # Use fill for land use categories
+Ca <-   ggplot(dat, aes(x= fct_reorder (land_use, Ca_mg_l,  .fun = median, .na_rm = TRUE), y=Ca_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Ca (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Ca
+# bog - fen 0.01
+# bog - grassland 0.002
+# bog cropland 0.001
+# bog - river 0.01
+# fen - bog 0.04
+# grassland - rewetted bog 0.01
+# grassland - rewetted extraction 0.01
+# rewetted bog - cropland 0.01
+# rewetted extraction - crop land 0.001
+
+
 #dev.off()
 #
 #
@@ -1133,14 +1197,14 @@ Ca_time2
 
 #tiff("LP3+_water_quality_Al.tiff", units="in", width=6.5, height=4, res=300)
 
-Al <- ggplot(dat, aes(x = land_use, y =Al_ug_l,  fill = land_use)) + # Use fill for land use categories
+Al <-   ggplot(dat, aes(x= fct_reorder (land_use, Al_ug_l,  .fun = median, .na_rm = TRUE), y=Al_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Al (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 100, 1000), labels = scales::number)+
   theme_minimal() + # Clean theme
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Al
 #dev.off()
 #
@@ -1182,14 +1246,14 @@ Al_time2
 
 #tiff("LP3+_water_quality_As.tiff", units="in", width=6.5, height=4, res=300)
 
-As <- ggplot(dat, aes(x = land_use, y =As_ug_l,  fill = land_use)) + # Use fill for land use categories
+As <-   ggplot(dat, aes(x= fct_reorder (land_use, As_ug_l,  .fun = median, .na_rm = TRUE), y=As_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("As (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme  
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 50, 100), labels = scales::number)+
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 As  #element_text(angle = 45, hjust = 1, size=12),
 
 #dev.off()
@@ -1214,13 +1278,13 @@ As  #element_text(angle = 45, hjust = 1, size=12),
 
 #tiff("LP3+_water_quality_Cr.tiff", units="in", width=6.5, height=4, res=300)
 
-Cr <- ggplot(dat, aes(x = land_use, y =Cr_ug_l,  fill = land_use)) + # Use fill for land use categories
+Cr <-   ggplot(dat, aes(x= fct_reorder (land_use, Cr_ug_l,  .fun = median, .na_rm = TRUE), y=Cr_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Cr (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Cr
 #dev.off()
 #
@@ -1264,13 +1328,13 @@ Cr_time2
 
 #tiff("LP3+_water_quality_Cu.tiff", units="in", width=6.5, height=4, res=300)
 
-Cu <- ggplot(dat, aes(x = land_use, y =Cu_ug_l,  fill = land_use)) + # Use fill for land use categories
-  geom_boxplot(outlier.shape = NA) + 
+Cu <-   ggplot(dat, aes(x= fct_reorder (land_use, Cu_ug_l,  .fun = median, .na_rm = TRUE), y=Cu_ug_l, fill = land_use) ) +
+    geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Cu (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
+  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Cu
 #dev.off()
 #
@@ -1314,7 +1378,7 @@ Cu_time2
 
 #tiff("LP3+_water_quality_Fe.tiff", units="in", width=6.5, height=4, res=300)
 
-Fe <- ggplot(dat, aes(x = land_use, y =Fe_ug_l,  fill = land_use)) + # Use fill for land use categories
+Fe <-   ggplot(dat, aes(x= fct_reorder (land_use, Fe_ug_l,  .fun = median, .na_rm = TRUE), y=Fe_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
@@ -1367,7 +1431,7 @@ Fe_time2
 
 #tiff("LP3+_water_quality_IC.tiff", units="in", width=6.5, height=4, res=300)
  
-IC <- ggplot(dat, aes(x = land_use, y =IC_mg_l,  fill = land_use)) + # Use fill for land use categories
+DIC <- ggplot(dat, aes(x = land_use, y =IC_mg_l,  fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
@@ -1376,7 +1440,7 @@ IC <- ggplot(dat, aes(x = land_use, y =IC_mg_l,  fill = land_use)) + # Use fill 
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 3, 10, 30), labels = scales::number) +
   theme_minimal() + # Clean theme
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12)
-IC
+DIC
 
 #dev.off()
 
@@ -1385,15 +1449,15 @@ IC
 
 #tiff("LP3+_water_quality_Mn.tiff", units="in", width=6.5, height=4, res=300)
 
-Mn <- ggplot(dat, aes(x = land_use, y =Mn_ug_l,  fill = land_use)) + # Use fill for land use categories
-  geom_boxplot(outlier.shape = NA) + 
+Mn <-   ggplot(dat, aes(x= fct_reorder (land_use, Mn_ug_l,  .fun = median, .na_rm = TRUE), y=Mn_ug_l, fill = land_use) ) +
+    geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Mn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 10, 100, 1000, 10000), labels = scales::number)+
   #scale_y_continuous(trans = 'pseudo_log') +
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #
 Mn
 #dev.off()
 #
@@ -1435,14 +1499,14 @@ Mn_time2
 
 #tiff("LP3+_water_quality_Ni.tiff", units="in", width=6.5, height=4, res=300)
 
-Ni <- ggplot(dat, aes(x = land_use, y =Ni_ug_l,  fill = land_use)) + # Use fill for land use categories
+Ni <-   ggplot(dat, aes(x= fct_reorder (land_use, Ni_ug_l,  .fun = median, .na_rm = TRUE), y=Ni_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Ni (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 5, 10, 20, 50), labels = scales::number)+
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12), 
+  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #
 Ni
 #dev.off()
 #
@@ -1485,13 +1549,13 @@ Ni_time2
 
 #tiff("LP3+_water_quality_Pb.tiff", units="in", width=6.5, height=4, res=300)
 
-Pb <- ggplot(dat, aes(x = land_use, y =Pb_ug_l,  fill = land_use)) + # Use fill for land use categories
+Pb <-   ggplot(dat, aes(x= fct_reorder (land_use, Pb_ug_l,  .fun = median, .na_rm = TRUE), y=Pb_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Pb (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12),
+  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),  axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  #element_text(angle = 45, hjust = 1, size=12),
 Pb
 
 #dev.off()
@@ -1500,7 +1564,7 @@ Pb
 #### Zn	#### 
 #tiff("LP3+_water_quality_Zn.tiff", units="in", width=6.5, height=4, res=300)
 
-Zn <- ggplot(dat, aes(x = land_use, y =Zn_ug_l,  fill = land_use)) + # Use fill for land use categories
+Zn <-   ggplot(dat, aes(x= fct_reorder (land_use, Zn_ug_l,  .fun = median, .na_rm = TRUE), y=Zn_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
@@ -1519,7 +1583,7 @@ Zn
 
 #can use units of ug or mg
 
-P <- ggplot(dat, aes(x = land_use, y =P_mg_l,  fill = land_use)) + # Use fill for land use categories
+TP <- ggplot(dat, aes(x = land_use, y =P_mg_l,  fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
@@ -1528,7 +1592,8 @@ P <- ggplot(dat, aes(x = land_use, y =P_mg_l,  fill = land_use)) + # Use fill fo
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10), labels = scales::number)+
   theme_minimal() + # Clean theme
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))  
-P
+TP
+
 #dev.off()     # There are 2 zeros which produce an error for the log transformation
 #
 #
@@ -1571,13 +1636,13 @@ P_time2
 
 # for units can use ug or mg
 
-Si <- ggplot(dat, aes(x = land_use, y =Si_mg_l,  fill = land_use)) + # Use fill for land use categories
+Si <-   ggplot(dat, aes(x= fct_reorder (land_use, Si_mg_l,  .fun = median, .na_rm = TRUE), y=Si_mg_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression("Si (mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=12),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) #element_text(angle = 45, hjust = 1, size=12), 
+  theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) #
 Si   #
 #dev.off()
 #
@@ -1618,6 +1683,32 @@ Si_time2
 #
 #### combine plots ####
 # use cowplot bc ggarrange spacing is weird (too much white space)
+
+
+jpeg("LP3+_wq_key_elements.jpeg", units="in", width=8, height=8, res=300)
+
+combine1 <- ggarrange(DOC + theme( axis.text.x = element_blank() ),
+                      NO3  + theme( axis.text.x = element_blank() ), 
+                      NO2  + theme( axis.text.x = element_blank() ), 
+                      NH4  + theme( axis.text.x = element_blank() ), 
+                      PO4 , 
+                      TP ,
+                      nrow = 3, ncol = 2, align = "v", labels = c("A", "B", "C", "D", "E", "F"),
+                      heights = c( 1,1,1.6))  
+combine1
+
+dev.off()
+
+
+# ions
+jpeg("LP3+_wq_ions.jpeg", units="in", width=8, height=13, res=300)
+
+combine1 <- plot_grid(Al, Ca, Cl, Fluo, K, Mg, Na, SO4, Si, 
+                       ncol = 2, align = "v" ) 
+combine1
+
+dev.off()
+
 
 
 jpeg("LP3+_water_quality1.jpeg", units="in", width=10, height=12, res=300)
@@ -1723,7 +1814,7 @@ time_series_7 <- ggarrange( SO4_time2,
                             ncol = 1, nrow= 1,  align = "v", common.legend=T )
 time_series_7
 dev.off()
-
+unique(dat$site)
 #######################################################################################
 #### Ternary plots ####
 #From Peacock et al 2022 Ecosystems
@@ -1774,11 +1865,11 @@ tern_all <- ggtern(data = dat, aes(x = P_tern  , y = C_tern  ,  z =  N_tern  )) 
   theme_bw() +                          
   theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
+    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7 ,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", alpha=0.7, linewidth = 1) +
   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
     mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-    inherit.aes = FALSE,  color = "red", linewidth = 1) +
+    inherit.aes = FALSE,  color = "red", alpha=0.7, linewidth = 1) +
   geom_point(aes(fill=land_use), shape=21, colour="black", size =3, alpha=0.7) +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
     theme( tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
@@ -1786,18 +1877,18 @@ tern_all <- ggtern(data = dat, aes(x = P_tern  , y = C_tern  ,  z =  N_tern  )) 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" )) +
-  theme(legend.title = element_blank(), tern.panel.mask.show = FALSE, tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2)) +  labs(T = "%C", L = "%P", R = "%N")
+  theme( tern.axis.text = element_text(size = 10), legend.title = element_blank(), tern.panel.mask.show = FALSE, tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2)) +  labs(T = "%C", L = "%P", R = "%N")
 tern_all
 #
 #
 # Cropland ternary plot
 tern_cropland <- ggtern(data = subset(dat, land_use=="Cropland"), aes(x = P_tern  , y = C_tern  ,  z =  N_tern  )) +   theme_bw() +theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
+               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow",alpha=0.7,  linewidth = 1) +
   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
                    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-                   inherit.aes = FALSE,  color = "red", linewidth = 1) +
+                   inherit.aes = FALSE,  color = "red", alpha=0.7,  linewidth = 1) +
   geom_point(aes(fill=land_use), shape=21, colour="black", size =3, alpha=0.7) +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
   theme( tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
@@ -1805,18 +1896,18 @@ tern_cropland <- ggtern(data = subset(dat, land_use=="Cropland"), aes(x = P_tern
                                "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                "Semi-natural bog" = "#6DA34D" ), guide = "none") +
-  theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), legend.title = element_blank(), tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") + coord_tern(expand = TRUE) 
+  theme(tern.axis.text = element_text(size = 10), tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), legend.title = element_blank(), tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") + coord_tern(expand = TRUE) 
 tern_cropland
 #
 #
 # Testing with labels for site since there is so much dispersion
 tern_cropland_sites <- ggtern(data = subset(dat, land_use=="Cropland"), aes(x = P_tern  , y = C_tern  ,  z =  N_tern  )) +   theme_bw() +theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
+               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", alpha=0.7,  linewidth = 1) +
   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
                    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-                   inherit.aes = FALSE,  color = "red", linewidth = 1) +
+                   inherit.aes = FALSE,  color = "red", alpha=0.7,  linewidth = 1) +
   geom_point(aes(fill=land_use, shape=site), size =3, alpha=0.7, colour="black") +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
   theme( tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
@@ -1824,7 +1915,7 @@ tern_cropland_sites <- ggtern(data = subset(dat, land_use=="Cropland"), aes(x = 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), guide = "none") +
-  theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), legend.title = element_blank(), tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") + coord_tern(expand = TRUE) + 
+  theme(tern.axis.text = element_text(size = 10), tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), legend.title = element_blank(), tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") + coord_tern(expand = TRUE) + 
   scale_shape_manual(values = c("LC" = 13, "LM" = 7, "RG" = 22, "RIN"=3, "SW"=24, "WF"=8, "WM"=21)) 
 tern_cropland_sites
 #
@@ -1832,11 +1923,11 @@ tern_cropland_sites
 # Grassland ternary plot
 tern_grassland <- ggtern(data = subset(dat, land_use=="Grassland"), aes(x = P_tern  , y = C_tern  ,  z =  N_tern  )) +   theme_bw() +theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
+               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", alpha=0.7,  linewidth = 1) +
   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
                    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-                   inherit.aes = FALSE,  color = "red", linewidth = 1) +
+                   inherit.aes = FALSE,  color = "red",  alpha=0.7, linewidth = 1) +
   geom_point(aes(fill=land_use), size =3, alpha=0.7, shape=21, colour="black") +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
   theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
@@ -1844,14 +1935,14 @@ tern_grassland <- ggtern(data = subset(dat, land_use=="Grassland"), aes(x = P_te
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D", guide = "none" )) +
-  theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2),legend.position = "none",  tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") +
+  theme(tern.axis.text = element_text(size = 10), tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2),legend.position = "none",  tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") +
   #geom_text(    data = subset(dat, land_use == "Grassland" & C_tern < 60),    aes(x = P_tern, y = C_tern, z = N_tern, label = site),    inherit.aes = FALSE,    size = 3) +
-  annotate("text", x = 40, y = 28, z = 12, label = "GF", size = 3, color = "black") +
-  annotate("text", x = 75, y = 31, z = 19, label = "GF", size = 3, color = "black") +
+  annotate("text", x = 43, y = 29, z = 11, label = "GF", size = 3, color = "black") +
+  annotate("text", x = 79, y = 33, z = 17, label = "GF", size = 3, color = "black") +
   annotate("text", x = 80, y = 21, z = 25, label = "RV", size = 3, color = "black") +
-  annotate("text", x = 7, y = 10, z = 95, label = "GF", size = 3, color = "black") +
+  annotate("text", x = 7, y = 8, z = 95, label = "GF", size = 3, color = "black") +
   annotate("text", x = 9, y = 15, z = 95, label = "BUF", size = 3, color = "black") +
-  annotate("text", x = 12, y = 95, z = 77, label = "GF", size = 3, color = "black") 
+  annotate("text", x = 13, y = 91, z = 72, label = "GF", size = 3, color = "black") 
 tern_grassland
 #
 #
@@ -1860,14 +1951,14 @@ tern_natural <- ggtern(data = subset(dat, land_use=="Semi-natural bog"| land_use
   theme_bw() +                          
   theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
+               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", alpha=0.7,  linewidth = 1) +
   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
                    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-                   inherit.aes = FALSE,  color = "red", linewidth = 1) +
+                   inherit.aes = FALSE,  color = "red", alpha=0.7,  linewidth = 1) +
   geom_point(aes(fill=land_use), shape=21, colour="black", size =3, alpha=0.7) +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
-  theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
+  theme(tern.axis.text = element_text(size = 10), tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
@@ -1884,14 +1975,14 @@ tern_rewetted <- ggtern(data = subset(dat, land_use=="Rewetted extraction"| land
   theme_bw() +                          
   theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
+               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", alpha=0.7,  linewidth = 1) +
   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
                    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-                   inherit.aes = FALSE,  color = "red", linewidth = 1) +
+                   inherit.aes = FALSE,  color = "red", alpha=0.7,  linewidth = 1) +
   geom_point(aes(fill=land_use), shape=21, colour="black", size =3, alpha=0.7) +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
-  theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2),  tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
+  theme(tern.axis.text = element_text(size = 10), tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2),  tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
@@ -1906,11 +1997,8 @@ tern_rewetted
 tern_RiverHLC <- ggtern(data = subset(dat,land_use=="River/HLC"), aes(x = P_tern  , y = C_tern  ,  z =  N_tern  )) +  theme_bw() +                          
   theme_showarrows() +
   geom_segment(data = data.frame(x = 20, y = 80, z = 0, xend = 20, yend = 0, zend = 80),
-               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", linewidth = 1) +
-  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", linewidth = 1) +
-  geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),
-                   mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),
-                   inherit.aes = FALSE,  color = "red", linewidth = 1) +
+               mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "blue", alpha=0.7,  linewidth = 1) +
+  geom_segment(data = data.frame(x = 80, y = 0, z = 20, xend = 0, yend = 80, zend = 20), mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend), inherit.aes = FALSE, color = "yellow", alpha=0.7,  linewidth = 1) +   geom_segment(    data = data.frame(x = 80, y = 20, z = 0, xend = 0, yend = 20, zend = 80),                    mapping = aes(x = x, y = y, z = z, xend = xend, yend = yend, zend = zend),  inherit.aes = FALSE,  color = "red", alpha=0.7,  linewidth = 1) +
   geom_point(aes(fill=land_use), shape=21, colour="black", size =3, alpha=0.7) +    
   geom_point(aes(x = 106, y = 106, z = 106), color = "red", size = 3) +  # Redfield Ratio
   theme(tern.axis.arrow.T = element_line(size = 2), tern.axis.arrow.L = element_line(size = 2), tern.axis.arrow.R = element_line(size = 2), tern.axis.title.T = element_blank(), tern.axis.title.L = element_blank(), tern.axis.title.R = element_blank() ) + theme_clockwise()  +
@@ -1918,38 +2006,17 @@ tern_RiverHLC <- ggtern(data = subset(dat,land_use=="River/HLC"), aes(x = P_tern
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" )) +
-  theme(legend.position = "none",, tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") +
+  theme(tern.axis.text = element_text(size = 10), legend.position = "none", tern.panel.mask.show = FALSE) +  labs(T = "%C", L = "%P", R = "%N") +
  #geom_text(    data = subset(dat,  land_use=="River/HLC" & N_tern<40),    aes(x = P_tern, y = C_tern, z = N_tern, label = site),    inherit.aes = FALSE,    size = 3) +
-  annotate("text", x = 28, y = 80, z = 15, label = "GF", size = 3, color = "black") +
-  annotate("text", x = 15, y = 75, z = 6, label = "WSF", size = 3, color = "black") +
-  annotate("text", x = 5, y = 89, z = 5, label = "GF", size = 3, color = "black") +
-  annotate("text", x = 1, y = 99, z = 1, label = "WSF", size = 3, color = "black") 
+  annotate("text", x = 28, y = 72.5, z = 10, label = "GF", size = 3, color = "black") +
+  annotate("text", x = 15, y = 87, z = 6, label = "WSF", size = 3, color = "black") +
+  annotate("text", x = 6, y = 95, z = 3.5, label = "GF", size = 3, color = "black") +
+  annotate("text", x = -8, y = 100, z = 7.5, label = "WSF", size = 3, color = "black") 
 tern_RiverHLC
 #
 #
 #### Combine ternary plots ####
-# extract the legend from one of the plots
-legend <- get_legend(
-  tern_all + theme(legend.title = element_blank(),
-                    legend.position = "right", 
-                   legend.key.size = unit(0.5, "cm"),
-                   legend.text = element_text(size = 12) ))
-
-
-jpeg("LP3+_tern_combined.jpeg", units="in", width=12, height=12, res=300)
-#
-combine1 <- plot_grid( tern_cropland  + theme(axis.title = element_blank(), axis.text = element_blank(), plot.margin = margin(t = -0.8, b = -0.8, l = 0, r = 0, unit = "cm") ),                                 
-                       tern_grassland + theme(axis.title = element_blank(), axis.text = element_blank()),  
-                       tern_natural + theme(legend.position="none", axis.title = element_blank(), axis.text = element_blank(), plot.margin = margin(t = -0.8, b = -0.8, l = 0, r = 0, unit = "cm")), 
-                       tern_rewetted + theme(legend.position="none", axis.title = element_blank(), axis.text = element_blank(), plot.margin = margin(t = -0.8, b = -0.8, l = 0, r = 0, unit = "cm")), 
-                       tern_RiverHLC + theme(axis.title = element_blank(), axis.text = element_blank(),  plot.margin = margin(t = -0.8, b = -0.8, l = 0, r = 0, unit = "cm")),   
-                       legend, 
-                      ncol = 3 )  
-combine1
-#
-dev.off()
-
-
+# Grid plot not really working with the spacing so try ggarrange
 
 jpeg("LP3+_tern_combined.jpeg", units="in", width=9, height=7, res=350)
 combine2 <- ggarrange(tern_all  + theme(axis.title = element_blank(), axis.text = element_blank(), plot.margin = margin(t = -8, b = -8, l = -0.8, r = -0.8, unit = "cm") ), 
@@ -1958,12 +2025,19 @@ combine2 <- ggarrange(tern_all  + theme(axis.title = element_blank(), axis.text 
                       tern_natural + theme(legend.position="none", axis.title = element_blank(), axis.text = element_blank(), plot.margin = margin(t = -8, b = -8, l = -0.8, r = -0.8, unit = "cm")), 
                       tern_rewetted + theme(legend.position="none", axis.title = element_blank(), axis.text = element_blank(), plot.margin = margin(t = -8, b = -8, l =-0.8, r = -0.8, unit = "cm")), 
                       tern_RiverHLC + theme(axis.title = element_blank(), axis.text = element_blank(),  plot.margin = margin(t = -8, b = -8, l = -0.8, r = -0.8, unit = "cm")), 
-  ncol = 3, nrow = 2,  common.legend = TRUE, legend = "bottom", heights=1, widths=1)
+  ncol = 3, nrow = 2,  common.legend = TRUE, legend = "bottom", heights=1, widths=1,   labels = c("A", "B", "C", "D", "E", "F"))
 combine2
 dev.off()
 
 #######################################################################################
 #### Statistical analysis ####
+#
+## Summary stats ##
+summary <- dat %>%
+  group_by(site) %>%
+  summarise(lat, lon)
+
+
 #
 # Means by land use 
 summary_table <- dat %>%
@@ -2042,7 +2116,7 @@ summary(NO3_lmer)
 plot(NO3_lmer)  # fanned
 qqnorm(resid(NO3_lmer))
 qqline(resid(NO3_lmer))
-emmeans(pH_lmer, pairwise ~ NO3_lmer) # pairwise differences
+emmeans(NO3_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
 PO4_lmer <- lmer(PO4_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
@@ -2235,3 +2309,268 @@ plot(Si_lmer)  # fanned
 qqnorm(resid(Si_lmer))
 qqline(resid(Si_lmer))
 emmeans(Si_lmer, pairwise ~ land_use)# pairwise differences
+#
+#
+################################################################################
+#### Correlation plot ####
+#
+# Subset numeric columns
+dat_numeric <- select(dat, where(is.numeric))
+#
+# Drop columns with all NAs
+dat_numeric <- dat_numeric %>% select(where(~ !all(is.na(.))))
+#
+# Drop P ug L
+dat_numeric <- dat_numeric %>% select(-P_ug_l, -Li_mg_l) # not enough data points
+#
+#
+# make data frame into matrix
+dat_matrix <- rcorr(as.matrix(dat_numeric),  type = "pearson")
+#
+cor_mat <- dat_matrix$r
+p_mat <- dat_matrix$P
+#
+# Make correlation plot
+jpeg("LP3+_WQ_corrplot_pearson.jpeg", units="in", width=6, height=6, res=300)
+
+corrplot(cor_mat,  type="upper", diag=FALSE, tl.col = "black", tl.cex = 0.9,
+         p.mat = p_mat, sig.level = 0.05, insig = "blank") 
+
+dev.off()
+
+################################################################################
+##### Run PCA for heavy metals ####
+#
+metals <- dat %>% select(site, land_use, month, Pb_ug_l, As_ug_l, Fe_ug_l, Ni_ug_l, Cr_ug_l, Cu_ug_l, Mn_ug_l) # Zn has too many NAs
+# 2 rows are all NAs, filter out
+metals <- metals %>% filter(!is.na(Mn_ug_l))
+#
+# Filter out rows where all metals are 0
+metals <- metals %>%
+  filter(rowSums(across(c("Pb_ug_l", "As_ug_l", "Fe_ug_l", "Ni_ug_l", "Cr_ug_l", "Cu_ug_l", "Mn_ug_l"))) != 0)
+#40 rows filtered out
+#
+# subset numerical variables
+metals_num <- select(metals, where(is.numeric))
+#
+# How many 0 values in each column?
+metals_num %>%
+  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE) / n() * 100)) -> zero_percent
+
+#
+#
+# Run PCA (standardizing the data)
+pca_result <- prcomp(metals_num, center = TRUE, scale. = TRUE)
+#
+# View summary statistics
+summary(pca_result)
+#
+# Scree plot showing variance explained by each PC
+fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black") 
+#
+#
+# Visualize the PCA with site as a grouping factor
+#
+my.col.var <- c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                            "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                            "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                            "Semi-natural bog" = "#6DA34D" ) #set colour palette
+#
+#
+#
+tiff("PCA_LP3+_metals_pca.tiff", units="in", width=8, height=6, res=300)
+PCA_fig <- fviz_pca_biplot(pca_result, 
+                              col.ind = metals$land_use,
+                              addEllipses = TRUE, label = "var",
+                              pointsize=3,
+                              alpha.ind=0.5,
+                              mean.point=F,
+                              palette=my.col.var,
+                              col.var = "black", repel = TRUE,
+                              legend.title = " ") + ggtitle(NULL) 
+PCA_fig
+dev.off()
+#################################################################################
+#### Map of heavy metals ####
+#
+# Get UK map data
+uk_map <- map_data("world", region = "UK")
+
+# Plot Pb 
+Pb_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Pb_ug_l > 0), aes(x = lon, y = lat, size = Pb_ug_l), color = "#66B2FF", alpha = 0.6) +
+  geom_point(data = data.frame(city = c("London", "Manchester"),
+                               lon = c(-0.1276, -2.2426),
+                               lat = c(51.5074, 53.4808)),
+             aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"),
+                              lon = c(-0.1276, -2.2426),
+                              lat = c(51.5074, 53.4808)),
+            aes(x = lon, y = lat, label = city),
+            nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Pb " * mu * "g " * L^{-1}),  range = c(2, 10),  breaks = c(10, 30, 80)) +
+  coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Pb_map
+
+
+# Plot As
+As_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, As_ug_l > 0), aes(x = lon, y = lat, size = As_ug_l), color = "#8F9779", alpha = 0.6) +
+  geom_point(data = data.frame(city = c("London", "Manchester"),
+                               lon = c(-0.1276, -2.2426),
+                               lat = c(51.5074, 53.4808)),
+             aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"),
+                              lon = c(-0.1276, -2.2426),
+                              lat = c(51.5074, 53.4808)),
+            aes(x = lon, y = lat, label = city),
+            nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("As " * mu * "g " * L^{-1}),  range = c(2, 10),  breaks = c(20, 80, 200)) +
+  coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+As_map
+
+
+# Plot Fe
+Fe_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Fe_ug_l > 0), aes(x = lon, y = lat, size =Fe_ug_l), color = "orange", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),
+                               lon = c(-0.1276, -2.2426),
+                               lat = c(51.5074, 53.4808)),
+             aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"),
+                              lon = c(-0.1276, -2.2426),
+                              lat = c(51.5074, 53.4808)),
+            aes(x = lon, y = lat, label = city),
+            nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Fe " * mu * "g " * L^{-1}),  range = c(2, 10), breaks = c(10, 10000, 50000)) +
+  coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Fe_map
+
+
+# Plot Ni
+Ni_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Ni_ug_l > 0), aes(x = lon, y = lat, size =Ni_ug_l), color = "#C8A2C8", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),
+                                                                                                                                                    lon = c(-0.1276, -2.2426),
+                                                                                                                                                    lat = c(51.5074, 53.4808)),
+                                                                                                                                  aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"),
+                              lon = c(-0.1276, -2.2426),
+                              lat = c(51.5074, 53.4808)),
+            aes(x = lon, y = lat, label = city),
+            nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Ni " * mu * "g " * L^{-1}),  range = c(2, 10), breaks=c(10, 40, 80)   ) +
+  coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Ni_map
+
+# Plot Cr
+Cr_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Cr_ug_l > 0), aes(x = lon, y = lat, size =Cr_ug_l), color = "#db4437", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)), aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"), lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)),  aes(x = lon, y = lat, label = city),  nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Cr " * mu * "g " * L^{-1}),  range = c(2, 10), breaks=c(4, 8, 12)   ) +
+  coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Cr_map
+
+# plot Cu
+Cu_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Cu_ug_l > 0), aes(x = lon, y = lat, size =Cu_ug_l), color = "#40E0D0", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)), aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"), lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)),  aes(x = lon, y = lat, label = city),  nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Cu " * mu * "g " * L^{-1}),  range = c(2, 10)  , breaks=c(10, 30, 60) ) +   coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Cu_map
+
+# plot Cd
+Cd_map <- ggplot() +  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Cd_ug_l > 0), aes(x = lon, y = lat, size = Cd_ug_l), color = "#00008B", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),
+                               lon = c(-0.1276, -2.2426),
+                               lat = c(51.5074, 53.4808)),
+             aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"),
+                              lon = c(-0.1276, -2.2426),
+                              lat = c(51.5074, 53.4808)),
+            aes(x = lon, y = lat, label = city),
+            nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Cd " * mu * "g " * L^{-1}),  range = c(2, 10),  breaks = c(1, 5, 10)) +   coord_fixed(1.3) +    theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Cd_map
+
+
+# plot Mn
+Mn_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Mn_ug_l > 0), aes(x = lon, y = lat, size =Mn_ug_l), color = "#DAA520", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)), aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"), lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)),  aes(x = lon, y = lat, label = city),  nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Mn " * mu * "g " * L^{-1}),  range = c(2, 10) ,  , breaks=c(10, 100, 1000, 9000) ) +   coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Mn_map
+
+
+
+# Plot Zn
+Zn_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(dat, Zn_ug_l > 0), aes(x = lon, y = lat, size = Zn_ug_l), color = "#DE3163", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),
+                               lon = c(-0.1276, -2.2426),
+                               lat = c(51.5074, 53.4808)),
+             aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"),
+                              lon = c(-0.1276, -2.2426),
+                              lat = c(51.5074, 53.4808)),
+            aes(x = lon, y = lat, label = city),
+            nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Zn " * mu * "g " * L^{-1}),  range = c(2, 10), breaks = c(10, 100, 1000)) +
+  coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +
+  labs( x = "Longitude", y = "Latitude")
+Zn_map
+
+#plot Hg # not this is from a separate data frame
+
+Hg_map <- ggplot() +
+  geom_polygon(data = uk_map, aes(x=long, y=lat, group=group),
+               fill="gray90", color="black") +
+  geom_point(data = subset(mercury, Hg_ug_l > 0), aes(x = lon, y = lat, size =Hg_ug_l), color = "#A020F0", alpha = 0.6) +   geom_point(data = data.frame(city = c("London", "Manchester"),lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)), aes(x = lon, y = lat), color = "black", size = 2) +
+  geom_text(data = data.frame(city = c("London", "Manchester"), lon = c(-0.1276, -2.2426), lat = c(51.5074, 53.4808)),  aes(x = lon, y = lat, label = city),  nudge_y = 0.3, color = "black", size = 3) +
+  scale_size_continuous(name = expression("Hg " * mu * "g " * L^{-1}),  range = c(2, 10) ,  , breaks=c(0.02, 0.05) ) +   coord_fixed(1.3) +  # Fix aspect ratio for maps
+  theme_minimal() +   labs( x = "Longitude", y = "Latitude")
+Hg_map
+
+
+
+#combine
+jpeg("LP3+_heavy_metals_maps.jpeg", units="in", width=10, height=15, res=350)
+
+combine1 <- ggarrange(
+As_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = 0, b = 0, l = -0.8, r = -0.8, unit = "cm")),
+Cd_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = 0, b = 0, l = -0.8, r = -0.8, unit = "cm")),
+Cr_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = 0, b = 0, l = -0.8, r = -0.8, unit = "cm")),
+Cu_map + theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")), 
+Fe_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")),  
+Hg_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")),  
+Mn_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")),
+Ni_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")), 
+Pb_map + theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")),  
+Zn_map+ theme(axis.title = element_blank(), axis.text = element_blank(),  panel.grid = element_blank(), plot.margin = margin(t = -0.5, b = 0, l = -0.8, r = -0.8, unit = "cm")),  
+ncol = 2, nrow = 5,  align = "v",  labels = c("A", "B", "C", "D", "E", "F", "G", "H", "I", "J") )   
+combine1
+
+dev.off()
+
+
