@@ -926,6 +926,19 @@ DOC  # pairwise sig diffs: Grassland - (River/HLC) p = 0.0017        Rewetted bo
 
 # NPOC_time only 2 dates, so wait until more data 
 
+DOC_time <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NPOC_mg_l, colour = land_use)) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("DOC (mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
+  scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
+                                 "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
+                                 "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
+                                 "Semi-natural bog" = "#6DA34D" ), drop = FALSE)
+DOC_time
+
+
+
 #### Total Carbon ####  # Don't include this plot as per Mike's comment
 
 #TC <- ggplot(dat, aes(x = land_use, y =TC_mg_l,  fill = land_use)) + # Use fill for land use categories
@@ -1832,6 +1845,22 @@ dev.off()
 #### Combine time series plots ####
 # Use ggarrange as it allows for an easy common legend
 
+
+jpeg("LP3+_time-series_key_elements.jpeg", units="in", width=8, height=10, res=300)
+
+combine1 <- ggarrange(DOC_time ,
+                      NO3_time , 
+                      NO2_time , 
+                      NH4_time , 
+                      PO4_time , 
+                      P_time ,
+                      nrow = 3, ncol = 2, align = "v", labels = c("A", "B", "C", "D", "E", "F"),
+                      heights = c( 1,1,1), common.legend = T)  
+combine1
+
+dev.off()
+
+
 jpeg("LP3+_water_quality_timeseries1.jpeg", units="in", width=10, height=12, res=200)
 time_series_a <- ggarrange(Al_time, Ca_time, Cr_time, Cu_time, 
                      EC_time, Fe_time, K_time, Mg_time, Mn_time, Na_time,
@@ -2126,8 +2155,10 @@ dev.off()
 #######################################################################################
 #### Statistical analysis ####
 #
+# How many NO2 and NO3 values are 0
+sum(dat$NO2_mg_l == 0, na.rm = TRUE) / sum(!is.na(dat$NO2_mg_l)) * 100
 sum(dat$NO3_mg_l == 0, na.rm = TRUE) / sum(!is.na(dat$NO3_mg_l)) * 100
-
+#
 ## Summary stats ##
 summary <- dat %>%
   group_by(site) %>%
@@ -2141,7 +2172,6 @@ summary_table <- dat %>%
                         sd = ~sd(. , na.rm = TRUE)), 
                    .names = "{col}_{fn}")) %>%
   arrange(land_use)
-
 #
 # Make site_label a factor for the stats
 dat$site_label <- as.factor(dat$site_label)
@@ -2389,22 +2419,6 @@ emmeans(Zn_lmer, pairwise ~ land_use)# pairwise differences
 # TN not enough data
 #
 #
-P_lmer <- lmer(P_ug_l^(1/3)  ~ land_use + (1 | site/site_label),   data = subset(dat, P_ug_l <= 18))
-anova(P_lmer)
-summary(P_lmer)
-plot(P_lmer)  # fanned and an outlier
-qqnorm(resid(Zn_lmer))
-qqline(resid(Zn_lmer))
-emmeans(Zn_lmer, pairwise ~ land_use)# pairwise differences
-#
-#
-Si_lmer <- lmer(Si_mg_l^(1/3)  ~ land_use +  (1 | site/site_label),   data = dat)
-anova(Si_lmer)
-summary(Si_lmer)
-plot(Si_lmer)  # fanned
-qqnorm(resid(Si_lmer))
-qqline(resid(Si_lmer))
-emmeans(Si_lmer, pairwise ~ land_use)# pairwise differences
 #############################################################################
 #### Lmer for peat type effects on ions  ####
 # pH
@@ -2576,6 +2590,10 @@ PCA_fig
 dev.off()
 #################################################################################
 #### Map of heavy metals ####
+#
+# What percent of heavy metals are 0: 
+dat %>%
+  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE) / n() * 100)) -> zero_percent
 #
 # Get UK map data
 uk_map <- map_data("world", region = "UK")
