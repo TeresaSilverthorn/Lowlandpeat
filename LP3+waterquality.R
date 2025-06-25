@@ -17,6 +17,7 @@ library(ggtern)
 library(factoextra)
 library(data.table)
 library(maps)
+library(forcats)
 #
 #
 #
@@ -160,6 +161,29 @@ dat <- bind_rows(dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8)
 #
 str(dat) #323 obs of 44 vars
 #
+#############################################
+#### Read in Hg data ####
+#
+mercury <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Mercury/Mercury Hg results_TS.csv")
+#
+# Make values below LoD as "0"
+mercury <- mercury %>%
+  mutate(Hg_ug_l = if_else(FINAL <= 0.010, 0, FINAL))
+#
+# Add coordinates so you can spatially plot Hg
+#mercury <- merge(mercury, coords[, .(site, lat, lon)], by = "site", all.x = TRUE)
+#
+# What percentage are <LOD? 
+mercury %>%
+  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE) / n() * 100)) -> zero_percent
+#
+# Add mercury data to dat
+mercury_subset <- mercury %>%
+  select(site, site_label, land_use, Hg_ug_l)
+#
+dat <- bind_rows(dat, mercury_subset)
+#
+####################################################################
 #
 #
 #
@@ -184,6 +208,10 @@ levels(dat$land_use)[levels(dat$land_use) == "Grassland/raised WTs"] <- "Grassla
 levels(dat$land_use)[levels(dat$land_use) == "Paludiculture"] <- "Rewetted extraction"
 levels(dat$land_use)[levels(dat$land_use) == "Fen/reed bed"] <- "Semi-natural fen"
 #
+# Holme Fen is actually a bog! Correct this: 
+dat <- dat %>%
+  mutate(land_use = if_else(site == "HF", "semi-natural bog", land_use))
+#
 #
 # For plotting, remove the site=NA, for "Adney South?" until you confirm this site
 dat <- dat %>%
@@ -200,6 +228,8 @@ levels(dat$site)[levels(dat$site) == "GC-A"] <- "GC"
 levels(dat$site)[levels(dat$site) == "GC-B"] <- "GC"
 #
 #
+#### Repeated vs synoptic sampling ####
+#
 # Determine which data is a part of repeated sampling and which is synoptic
 df_counts <- dat %>%
   group_by(site) %>%
@@ -214,7 +244,12 @@ df_counts <- dat %>%
 dat <- dat %>%
   left_join(df_counts %>% select(site, sampling_frequency), by = "site")
 #
+# For the mercury samples, make the sampling frequency "synoptic"
+dat <- dat %>%
+  mutate(sampling_frequency = if_else(
+    !is.na(Hg_ug_l),  "synoptic", sampling_frequency  ))
 #
+############################################################################
 #
 site_summary <- dat %>%
   mutate(month = format(date, "%b"),
@@ -399,6 +434,7 @@ dat$site_label <- sapply(dat$site_label, function(x) {
 # Ask Mike about Roughs Roughs Catchwater Upper July and Catchwater Lower July (which is east/west)
 #
 #
+#### Coordinates ####
 # Load in rough site level coordinates, and match them to dat by site 
 coords <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Ancil dat/sample_site_coordinates_and_peat_type.csv", encoding = "Latin-1")
 #
@@ -406,34 +442,20 @@ coords <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/D
 dat <- merge(dat, coords[, .(site, lat, lon, peat_type)], by = "site", all.x = TRUE)
 #
 #
+#### Remove pore water #### Include for report, exclude for manuscript
 # Remove pore water data for analysis, but keep in public dataset
-dat <- dat %>%
-  filter(!grepl("pore", site_label, ignore.case = TRUE))
+#dat <- dat %>%
+#  filter(!grepl("pore", site_label, ignore.case = TRUE))
 #
+#
+#
+###################################################################################
+
 # reorder columns 
 #
 dat <- dat %>% select(sample_code, site_label, site, date, month, land_use, peat_type, sampling_frequency, coordinates, lat, lon, notes, everything())
 #
-
-#
-#
-###################################################################################
-# Read in Hg data
-#
-mercury <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Mercury/Mercury Hg results_TS.csv")
-#
-# Make values below LoD as "0"
-mercury <- mercury %>%
-  mutate(Hg_ug_l = if_else(FINAL <= 0.010, 0, FINAL))
-#
-# Add coordinates so you can spatially plot Hg
-mercury <- merge(mercury, coords[, .(site, lat, lon)], by = "site", all.x = TRUE)
-#
-# What percentage are <LOD? 
-mercury %>%
-  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE) / n() * 100)) -> zero_percent
-#
-####################################################################
+#####################################################################
 #
 #plots#
 #
@@ -2155,6 +2177,12 @@ dev.off()
 #######################################################################################
 #### Statistical analysis ####
 #
+max(dat$Fe_ug_l, na.rm=T)
+sum(dat$Fe_ug_l > 1000, na.rm = TRUE) / sum(!is.na(dat$Fe_ug_l)) * 100  #% FE values over 1000 ug l (WFD standard)
+sum(dat$Pb_ug_l > 14, na.rm = TRUE) / sum(!is.na(dat$Pb_ug_l)) * 100
+
+
+
 # How many NO2 and NO3 values are 0
 sum(dat$NO2_mg_l == 0, na.rm = TRUE) / sum(!is.na(dat$NO2_mg_l)) * 100
 sum(dat$NO3_mg_l == 0, na.rm = TRUE) / sum(!is.na(dat$NO3_mg_l)) * 100
