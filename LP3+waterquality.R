@@ -78,59 +78,41 @@ dat8 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality dat
 head(dat8)
 #
 #
-#replace non numeric values (with <) with zeros and NA for cases below detection limits or insufficient sample)
+########################################################################################################
 #
+# Remove the "<" symbol across all columns
 dat1 <- dat1 %>%
-  mutate(across(7:36, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
+  mutate(across(7:36, ~ as.numeric(str_replace(., "^<", ""))))
 #
 dat2 <- dat2 %>%
-  mutate(across(8:36, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
-#
+  filter(!sample_code %in% c("C112-04", "C112-06"))  %>% # remove rows with insufficient samples
+  mutate(across(8:36, ~ as.numeric(str_replace(., "^<", "")))) # weirdly one <0.02 in PO4 is made NA...
 #
 dat3 <- dat3 %>%
-  mutate(across(8:37, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
-#
+  mutate(across(8:37, ~ as.numeric(str_replace(., "^<", "")))) # the error warning is for i.s. we will delete later
 #
 dat4 <- dat4 %>%
-  mutate(across(8:37, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
-#
+  mutate(across(7:36, ~ str_remove_all(., "\\*"))) %>%    # remove the ** before and after
+  mutate(across(8:37, ~ as.numeric(str_replace(., "^<", ""))))
 #
 dat5 <- dat5 %>%
-  mutate(across(7:36, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value
-  mutate(across(7:36, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.)))))  %>%  
- filter(sample_code != "C105-47")      # remove row with missing value
-#
+  filter(sample_code != "C105-47")  %>%    # remove row with missing value
+  mutate(across(7:36, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** = over-range samples, estimated using linear extrapolation - TREAT WITH CAUTION"
+  mutate(across(7:36, ~ as.numeric(str_replace(., "^<", ""))))   
 #
 dat6 <- dat6 %>%
-  mutate(across(8:37, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
-#
+  mutate(across(8:37, ~ as.numeric(str_replace(., "^<", ""))))
 #
 dat7 <- dat7 %>%
-  mutate(across(7:36, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
-#
+  mutate(across(7:36, ~ as.numeric(str_replace(., "^<", ""))))
 #
 dat8 <- dat8 %>%
-  mutate(across(8:37, ~ as.numeric(case_when(
-    str_detect(., "<") ~ "0",  # Replace any cell containing "<" with "0" per Mike's suggestions
-    TRUE ~ as.character(.))))) 
+  filter(sample_code != "C115-29")  %>%     # remove row with missing value
+  mutate(across(8:37, ~ as.numeric(str_replace(., "^<", "")))) # the error is making a NA for a PO4 value noted as "to check"
+  #
 #
 #
-#
-#You will get an NA's introduced by coercion error, this is fine as any cells with i.s., or nd will be replaced with NA
+#You might get some NA's introduced by coercion error, this is normally fine fine as any cells with i.s., "to check". Will be replaced with NA
 #
 #
 # Remove Laura's sites
@@ -148,7 +130,7 @@ dat8 <- dat8 %>% filter(!grepl("Not present", notes))
 colnames(dat3)[colnames(dat3) == "TOC_mg_l"] <- "NPOC_mg_l"
 colnames(dat4)[colnames(dat4) == "TOC_mg_l"] <- "NPOC_mg_l"
 #
-# dat7 and dat8 use Si ug/l while all the rest use mg/L--convert 
+# dat7 and dat8 use Si ug/l while all the rest use mg/L--convert and rename
 dat7$Si_ug_l <- dat7$Si_ug_l/1000
 dat8$Si_ug_l <- dat8$Si_ug_l/1000
 #
@@ -159,32 +141,80 @@ colnames(dat8)[colnames(dat8) == "Si_ug_l"] <- "Si_mg_l"
 #
 dat <- bind_rows(dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8)
 #
-str(dat) #323 obs of 44 vars
-#
+str(dat) #321 obs of 44 vars
+
+# Remove any columns full of NAs
+dat <- dat[, colSums(!is.na(dat)) > 0]
+
+str(dat)  #321 obs of 38 vars
+
 #############################################
 #### Read in Hg data ####
 #
 mercury <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Mercury/Mercury Hg results_TS.csv")
 #
-# Make values below LoD as "0"
-mercury <- mercury %>%
-  mutate(Hg_ug_l = if_else(FINAL <= 0.010, 0, FINAL))
+# Make new column called Hg_ug_l
+mercury$Hg_ug_l <- mercury$FINAL
 #
 # Add coordinates so you can spatially plot Hg
 #mercury <- merge(mercury, coords[, .(site, lat, lon)], by = "site", all.x = TRUE)
 #
 # What percentage are <LOD? 
 mercury %>%
-  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE) / n() * 100)) -> zero_percent
+  summarise(across(everything(), ~ sum(. == 0.01, na.rm = TRUE) / n() * 100)) -> zero_percent
 #
 # Add mercury data to dat
 mercury_subset <- mercury %>%
-  select(site, site_label, land_use, Hg_ug_l)
+  select(site_label, Hg_ug_l, date)
 #
-dat <- bind_rows(dat, mercury_subset)
+mercury_subset$date<-as.POSIXct(mercury_subset$date, format="%d/%m/%Y", tz = "GMT")
 #
+#
+#Add the Hg data based on site and date
+dat <- dat %>%
+  left_join(mercury_subset %>% select(site_label, date, Hg_ug_l),
+            by = c("site_label", "date"))
+#
+sum(!is.na(dat$Hg_ug_l)) # make sure there are 60
+
+##################################################################################
+#### Dealing with values <LLD and <LOQ ####
+# Measurements below LLD are statistically indistinguishable from blanks, and are reported as <LLD
+# Measurements between LLD and LoQ are reported but are lower accuracy than desirable. 
+# i.s. = insufficient sample
+# nd = not detected (below limit of detection)
+
+# Replace values <LLD with LLD/2
+
+# read in the LLD_LOQ ancillary data
+LLD_LOQ <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Ancil dat/LLD_LOQ_values.csv")
+#
+head(LLD_LOQ)
+#
+# Check if align with dat
+setdiff(LLD_LOQ$substance, colnames(dat)) # these are fine, TOC was replaced with NPOC, S is not in dat, and Si is in mg as well as ug
+setdiff(colnames(dat), LLD_LOQ$substance)
+#
+#
+#### Loop for LLD ####
+# Loop through each row in LLD_LOQ
+for (i in 1:nrow(LLD_LOQ)) {
+  var_name <- LLD_LOQ$substance[i]
+  lld_value <- LLD_LOQ$LLD[i]
+  
+  # Check if the column exists in dat, and replace values <LLD with LLD/2
+  if (var_name %in% colnames(dat)) {
+    dat[[var_name]] <- ifelse(
+      !is.na(dat[[var_name]]) & dat[[var_name]] < lld_value,
+      lld_value / 2,
+      dat[[var_name]]
+    )
+  }
+}
+
+
 ####################################################################
-#
+# Other small formatting and labelling changes #
 #
 #
 dat$date<-as.POSIXct(dat$date, format="%Y-%m-%d", tz = "GMT")
@@ -241,10 +271,6 @@ df_counts <- dat %>%
 dat <- dat %>%
   left_join(df_counts %>% select(site, sampling_frequency), by = "site")
 #
-# For the mercury samples, make the sampling frequency "synoptic"
-dat <- dat %>%
-  mutate(sampling_frequency = if_else(
-    !is.na(Hg_ug_l),  "synoptic", sampling_frequency  ))
 #
 ############################################################################
 #
@@ -450,6 +476,20 @@ dat <- dat %>%
                              "pore", "surface"))
 #
 #
+#### Deal with P_ug_l and P_mg_L ####
+#There are two columns for P, with gaps, fill them with missing values from the other
+dat <- dat %>%
+  mutate(P_mg_l = if_else(is.na(P_mg_l) & !is.na(P_ug_l),
+    P_ug_l / 1000,
+    P_mg_l
+  ))
+#
+dat <- dat %>%
+  mutate(P_ug_l = if_else(is.na(P_ug_l) & !is.na(P_mg_l),
+                          P_mg_l * 1000,
+                          P_ug_l
+  ))
+
 ###################################################################################
 
 # reorder columns 
@@ -927,6 +967,10 @@ PO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
 geom_text_repel(data = dat_labels_PO4, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 30) 
 PO4_time2
+#
+
+sd(subset(dat, site %in% c("RG", "WF", "RV"))$PO4_mg_l, na.rm = TRUE)
+#mean PO4 for mesocosm section in report
 
 #### Sulfate	#### 
 
@@ -2586,7 +2630,7 @@ emmeans(SO4_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
 Na_lmer <- lmer(Na_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
-anova(Na_lmer)
+anova(Na_lmer) #p = 0.01
 summary(Na_lmer)
 plot(Na_lmer)  # fanned
 qqnorm(resid(Na_lmer))
