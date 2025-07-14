@@ -105,9 +105,11 @@ dat_clipped$CO2_mg_L <- ((dat_clipped$CO2..ppm.  * 44.01 * 1 )/1000) / (0.08206 
 #
 # From the pondi publication: 𝑉 is the headspace volume in the chamber (typically 0.0131 m3--13.1 L); and 𝐴 is the area of the chamber exposed to the water (typically 0.1282 m2)
 
+# from Rebecca McKenzie website says external measurements are diameter 31.5cm and height 13.5 cm , but you will need to measures how low the bowl sits in the water and take that off the height. So considering a height of 10cm, (which would be 7.79311328 L and 0.078 m2)
+
 # make a new column for volume and area
-dat_clipped$volume_L <- 13.1
-dat_clipped$area_m2 <- 0.1282
+dat_clipped$volume_L <- 7.79
+dat_clipped$area_m2 <- 0.078
 #
 #then set  the initial time of each measure to 0h 
 #use Naiara's function to rest the min time to each time
