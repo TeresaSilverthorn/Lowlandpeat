@@ -6,8 +6,12 @@ library(dplyr)
 library(ggplot2)
 library(data.table) # for fread
 library(stringr)
+library(rlang)
+library(purrr)
+library(patchwork)
 #
 #
+
 ##### NOTES #######
 # Note, XRF / LOI data is missing for MOS 84-98
 #
@@ -151,9 +155,14 @@ dat <- dat %>%
                                     NA_real_, percent_moisture))
 
 
+# Rename some sites for the report to align with water chemistry sampling
+dat$site[dat$site == "BM"] <- "DEL"
+dat$site[dat$site == "RGR6"] <- "RG"
+dat$site[dat$site == "WFA"] <- "WF"
+dat$site[dat$site == "MOS"] <- "MS"
 #
 # Reorder site levels
-dat$site <- factor(dat$site, levels = c("BM", "WSF", "WW", "HF", "SW", "LC", "RGR6", "WFA", "MF", "MOS", "ND", "RV", "WBF"))
+dat$site <- factor(dat$site, levels = c("DEL", "WSF", "WW", "HF", "SW", "LC", "RG", "WF", "MF", "MS", "ND", "RV", "WBF"))
 #
 # Reorder land use levels
 dat$land_use <- factor(dat$land_use, levels = c("Rewetted bog", "Semi-natural fen", "Regenerative arable", "Conventional arable", "Grassland" ))
@@ -164,6 +173,11 @@ dat <- subset(dat, sample_code != "LP3+ BM1.1_4")
 dat <- subset(dat, sample_code != "LP3+ HF1.1_22")
 #
 #
+## Save as csv
+write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/LP3+peatcore_XRF_LOI_clean.csv")
+#
+#
+
 ################################################################################
 #### Check LOI ####
 # Plot our LOIs by the XRF LOIs
@@ -255,6 +269,8 @@ geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(f
 Pb_all
 #
 dev.off()
+
+sum(dat$Pb_ug_g > 300, na.rm = TRUE) 
 #
 #
 #
@@ -331,6 +347,9 @@ Hg_all <- ggplot(subset(dat, !is.na(site)), aes(y = Hg_ug_g, x = depth_cm)) +
 Hg_all
 #
 dev.off()
+
+sum(dat$Hg_ug_g > 1, na.rm = TRUE)  # what number of samples above 1 ug/g (EC directive limit)
+
 ################################################################################
 #
 #
@@ -375,6 +394,7 @@ dev.off()
 #
 #
 #
+
 #
 ###############################################################################
 #
@@ -383,21 +403,21 @@ dev.off()
 #
 tiff("Br_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Br_all <- ggplot(subset(dat, site!="HF"), aes(y = Br_ug_g, x = depth_cm)) +
-  geom_point(size=1.5, alpha=0.7) +  
-  #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Br_all <- ggplot(subset(dat, !is.na(site)), aes(y = Br_ug_g, x = depth_cm)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Br", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal() +
-  theme(legend.position = "top", panel.border = element_rect(color = "black", fill = NA, size = 1), axis.text.x = element_text(angle = 45, hjust = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line())
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Br_all
 #
 dev.off()
 #
 #
+
 #
 ##################################################################################
 #
@@ -406,23 +426,107 @@ dev.off()
 #
 tiff("Ti_LP3+_peat_cores_all.tiff", units="in", width=8, height=6, res=300)
 #
-Ti_all <- ggplot(subset(dat, site!="HF"), aes(y = Ti_ug_g, x = depth_cm)) +
-  geom_point(size=1.5, alpha=0.7) + 
-  #geom_line(aes(group = 1)) + 
-  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") + 
+Ti_all <- ggplot(subset(dat, !is.na(site)), aes(y = Ti_ug_g, x = depth_cm)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
   labs(y = "Ti", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
-  facet_wrap(~ site, nrow = 2, ncol = 6) +  # Create a plot for each site
-  theme_minimal()  +
-  theme(legend.position = "top", panel.border = element_rect(color = "black", fill = NA, size = 1), axis.text.x = element_text(angle = 45, hjust = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line())
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Ti_all
 #
 dev.off()
 #
 #
+#################################################################################
+#### Plots by site ####
 #
-#
+#### DEL ####
+
+DEL <- ggplot(subset(dat, site =="DEL"), aes(y = Ti_ug_g, x = depth_cm)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
+  labs(y = "Ti", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 2, ncol = 7) +  # Create a plot for each site
+  theme_minimal() +   theme(panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+DEL
+
+
+# Loop to create plot
+create_element_plot <- function(element_col, title, site_name) {
+  
+  ggplot(subset(dat, site == site_name & !is.na(site)), aes_string(y = element_col, x = "depth_cm")) + 
+    geom_point(size = 1.5, alpha = 0.7) +   
+    geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red") +
+    labs(x = if(element_col %in% c("percent_loi")) "Depth (cm)" else "", 
+         title = paste(title)) + #choose when to show y axis label
+    scale_x_reverse() + coord_flip() + theme_minimal() +   
+    theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(color = "grey"), 
+          panel.grid.minor = element_blank(), axis.title.x = element_blank(), 
+          panel.border = element_blank(), axis.line.x = element_line(color = "black"), axis.line.y = element_line(color = "black"), plot.title = element_text(hjust = 0.5),
+          axis.ticks.x = element_line(), axis.ticks.y = element_line(), 
+          axis.text.y = if (element_col == "percent_loi") element_text() else element_blank(), 
+          axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+elements <- c("percent_loi", "Cu_ug_g","Fe_mg_g", "Pb_ug_g", "Hg_ug_g",  "Zn_ug_g", "K_mg_g", "P_mg_g", "Br_ug_g", "Rb_ug_g", "Si_mg_g","Ti_ug_g", "Y_ug_g")
+
+titles <- c( "LOI", "Cu", "Fe", "Pb", "Hg", "Zn", "K", "P", "Br", "Rb", "Si", "Ti", "Y")
+
+# Get unique sites
+sites <- unique(dat$site)
+
+# Loop over sites to create, display, and save plots
+for (site_name in sites) {
+  
+  # Create plots for this site
+  site_plots <- purrr::map2(elements, titles, ~ create_element_plot(.x, .y, site_name))
+  
+  # Combine with patchwork
+  combined_plot <- wrap_plots(site_plots, nrow = 1) +
+    plot_layout(
+      nrow = 1,
+      guides = "collect",
+      widths = rep(1, length(site_plots)),
+      design = NULL
+    ) &
+    theme(plot.margin = margin(1, 1, 1, 1)) &
+    plot_annotation(theme = theme(plot.margin = margin(0, 0, 0, 0)))
+  
+  # Save each plot as TIFF with site name in filename
+  tiff_filename <- paste0("LP3+_peat_core_", site_name, ".tiff")
+  tiff(tiff_filename, units = "in", width = 10, height = 6, res = 300)
+  print(combined_plot)
+  dev.off()
+  
+  # Optionally print progress
+  message("Saved plot for site: ", site_name)
+}
+
+
+
+####################################################################
+#create a plot per element
+DEL_plots <- purrr::map2(elements, titles, create_element_plot)
+
+# Display with patchwork
+wrap_plots(DEL_plots, nrow = 1) +
+  plot_layout(    nrow = 1,    guides = "collect",  widths = rep(1, length(DEL_plots)), design = NULL ) &
+  theme(plot.margin = margin(1, 1, 1, 1)) &   plot_annotation(theme = theme(plot.margin = margin(0, 0, 0, 0)))  
+
+DEL <- wrap_plots(DEL_plots, nrow = 1) +
+  plot_layout(    nrow = 1,    guides = "collect",  widths = rep(1, length(DEL_plots)), design = NULL ) &
+  theme(plot.margin = margin(1, 1, 1, 1)) &   plot_annotation(theme = theme(plot.margin = margin(0, 0, 0, 0)))  
+
+tiff("DEL_LP3+_peat_core.tiff", units = "in", width = 10, height = 6, res = 300)
+print(DEL)
+dev.off()
+
 #################################################################################
 ##### Run PCA ####
 #
@@ -437,8 +541,12 @@ dat_subset <- dat %>% select(-contains("netto"))
 dat_subset <- dat_subset %>% select(  -NA_NA, -Ag_ug_g, -Au_ug_g, -In_ug_g, -Hg_ug_g, -Cs_ug_g, -La_ug_g, -Cd_ug_g, -U_ug_g, -Co_ug_g, -Ce_ug_g, -Hf_ug_g, -W_ug_g, -Te_ug_g, -Sb_ug_g,   -Ge_ug_g, -I_ug_g, -Na_mg_g, -Na2O_mg_g, -Mo_ug_g,   -Ba_ug_g, -Sn_ug_g, -Ga_ug_g, -Rb_ug_g, -Mg_mg_g, -Se_ug_g, -Cr_ug_g, -Zr_ug_g, -Pd_ug_g, -Rh_ug_g, -Ta_ug_g, -Bi_ug_g, -Ru_ug_g, -Tl_ug_g, -Th_ug_g, -MgO_mg_g)
 #
 #
+which(is.na(dat_subset), arr.ind = TRUE) # where are the NAs
+dat_subset <- dat_subset[!is.na(dat_subset$LOI_percent), ] # get rid of rows with NAs
+
 # Also subset other useless columns and non-numeric columns
-dat_num <- dat_subset %>% select(c(8:33))
+dat_num <- dat_subset %>% select(c(9:33))
+#
 #
 # There are just a couple NA values, fill with mean (2 for Nb_ug_g, 2 for Zn_ug_g, 2 for Pb_ug_g)
 dat_num$Nb_ug_g[is.na(dat_num$Nb_ug_g)] <- mean(dat_num$Nb_ug_g, na.rm = TRUE)
@@ -476,13 +584,6 @@ PCA_fig <- fviz_pca_biplot(pca_result,
                            legend.title = " ") + ggtitle(NULL) 
 PCA_fig
 #dev.off()
-
-
-
-
-
-
-
 
 
 
