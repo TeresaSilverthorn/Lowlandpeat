@@ -483,6 +483,49 @@ dev.off()
 #
 ##################################################################################
 #
+#### Na ####
+#
+tiff("Na_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
+#
+Na_all <- ggplot(subset(dat, !is.na(site)), aes(y = Na_mg_g, x = depth_cm, shape=peat)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  scale_shape_manual(values=c( 21, 19)) +
+  labs(y = "Na", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  scale_y_continuous(breaks = seq(0, 125, by = 50)) +
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+Na_all
+#
+dev.off()
+#
+#
+##################################################################################
+##################################################################################
+#### Cl ####
+#
+tiff("Cl_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
+#
+Cl_all <- ggplot(subset(dat, !is.na(site)), aes(y = (Cl_ug_g)/1000, x = depth_cm, shape=peat)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  scale_shape_manual(values=c( 21, 19)) +
+  labs(y = "Cl", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  scale_y_continuous(breaks = seq(0, 60, by = 30)) +
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
+  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+Cl_all
+#
+dev.off()
+#
+#
+#
 #### Ti - the soil erosion indicator (Holzer and Holzer, 1998) ####
 #
 #
@@ -636,7 +679,7 @@ dat_subset <- dat %>% select(-contains("netto"))
 #na_percent_df <- data.frame(Column = names(na_percent), NA_Percentage = na_percent) # Exclude these elements which have high numbers of NAs: NA_NA, Ag_ug_g, Au_ug_g, In_ug_g, Hg_ug_g, Cs_ug_g, La_ug_g, Cd_ug_g, U_ug_g, Co_ug_g, Ce_ug_g, Hf_ug_g, W_ug_g, Te_ug_g, Sb_ug_g, Ge_ug_g, I_ug_g, I_ug_g, Na_mg_g, Na2O_mg_g, Mo_ug_g, Ba_ug_g, Sn_ug_g, Ga_ug_g, Rb_ug_g, Mg_mg_g, Se_ug_g, Cr_ug_g, Zr_ug_g
 #
 #
-dat_subset <- dat_subset %>% select(  site, peat, land_use, percent_loi ,  Cu_ug_g , Fe_mg_g ,  Pb_ug_g ,  Hg_ug_g ,   Zn_ug_g ,  K_mg_g ,  P_mg_g ,  Br_ug_g ,  Rb_ug_g ,  Si_mg_g , Ti_ug_g , Y_ug_g)
+dat_subset <- dat_subset %>% select(  site, peat, land_use, percent_loi ,  Cu_ug_g , Fe_mg_g ,  Pb_ug_g ,  Hg_ug_g ,   Zn_ug_g ,  K_mg_g ,  P_mg_g ,  Br_ug_g , Cl_ug_g,  Na_mg_g, Rb_ug_g ,  Si_mg_g , Ti_ug_g , Y_ug_g)
 #
 #
 which(is.na(dat_subset), arr.ind = TRUE) # where are the NAs
@@ -645,7 +688,7 @@ dat_subset <- dat_subset[!is.na(dat_subset$site), ] # get rid of rows with NAs
 dat_subset <- dat_subset[!is.na(dat_subset$Cu_ug_g), ] # get rid of rows with NAs
 
 # Also subset other useless columns and non-numeric columns
-dat_num <- dat_subset %>% select(percent_loi ,  Cu_ug_g , Fe_mg_g ,  Pb_ug_g ,  Hg_ug_g ,   Zn_ug_g ,  K_mg_g ,  P_mg_g ,  Br_ug_g ,  Rb_ug_g ,  Si_mg_g , Ti_ug_g , Y_ug_g)
+dat_num <- dat_subset %>% select(percent_loi ,  Cu_ug_g , Fe_mg_g ,  Pb_ug_g ,  Hg_ug_g ,   Zn_ug_g ,  K_mg_g ,  P_mg_g ,  Br_ug_g ,Cl_ug_g, Na_mg_g,  Rb_ug_g ,  Si_mg_g , Ti_ug_g , Y_ug_g)
 #
 #
 # There are just a couple NA values, fill with mean (2 for Nb_ug_g, 2 for Zn_ug_g, 2 for Pb_ug_g)
@@ -687,7 +730,10 @@ PCA_land_use <- fviz_pca_biplot(pca_result,
                            mean.point=F,
                            palette=my.col.var,
                            col.var = "black", repel = TRUE,
-                           legend.title = " ") + ggtitle(NULL) 
+                           legend.title = " ") + ggtitle(NULL) +  
+                           scale_shape_manual(values = c(16, 2, 4, 3, 7)) +
+                           xlab("PC1 (45.7%)") +   ylab("PC2 (25.7%)") + #update these values if you change pca
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.text = element_text(color = "black"), axis.title = element_text(color = "black"))
 PCA_land_use
 
 dev.off()
