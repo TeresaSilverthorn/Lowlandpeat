@@ -18,6 +18,7 @@ library(factoextra)
 library(data.table)
 library(maps)
 library(forcats)
+library(emmeans)
 #
 #
 #
@@ -73,11 +74,14 @@ head(dat7)
 #
 #
 #
-dat8 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C115 INTERIM 20250424_TS.xlsx", range= "A10:AK49")
+dat8 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C115 INTERIM 20250718_TS.xlsx", range= "A10:AK49")
 #
 head(dat8)
 #
 #
+dat9 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Sites added/Report C119 INTERIM 20250718_TS.xlsx", range= "A10:AK49")
+#
+head(dat9)
 ########################################################################################################
 #
 # Remove the "<" symbol across all columns
@@ -109,10 +113,15 @@ dat7 <- dat7 %>%
 dat8 <- dat8 %>%
   filter(sample_code != "C115-29")  %>%     # remove row with missing value
   mutate(across(8:37, ~ as.numeric(str_replace(., "^<", "")))) # the error is making a NA for a PO4 value noted as "to check"
-  #
+#
+dat9 <- dat9 %>%
+  filter(sample_code != "C119-29")  %>%     # remove row with missing value
+  mutate(across(8:37, ~ ifelse(grepl("over|>", ., ignore.case = TRUE), NA, .))) %>% # Si has some "over" and ">" notations
+  mutate(across(8:37, ~ as.numeric(str_replace(., "^<", ""))))
 #
 #
-#You might get some NA's introduced by coercion error, this is normally fine fine as any cells with i.s., "to check". Will be replaced with NA
+#
+#You might get some NA's introduced by coercion error, this is normally fine as any cells with i.s., "to check". Will be replaced with NA
 #
 #
 # Remove Laura's sites
@@ -139,7 +148,7 @@ colnames(dat8)[colnames(dat8) == "Si_ug_l"] <- "Si_mg_l"
 #
 #combine
 #
-dat <- bind_rows(dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8)
+dat <- bind_rows(dat1, dat2, dat3, dat4, dat5, dat6, dat7, dat8, dat9)
 #
 str(dat) #321 obs of 44 vars
 
@@ -465,7 +474,9 @@ coords <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/D
 dat <- merge(dat, coords[, .(site, lat, lon, peat_type)], by = "site", all.x = TRUE)
 #
 #
-#### Remove pore water #### Include for report, exclude for manuscript
+#### Remove pore water #### 
+#Include for report, exclude for manuscript
+#
 # Remove pore water data for analysis, but keep in public dataset
 #dat <- dat %>%
 #  filter(!grepl("pore", site_label, ignore.case = TRUE))
@@ -477,19 +488,15 @@ dat <- dat %>%
 #
 #
 #### Deal with P_ug_l and P_mg_L ####
-#There are two columns for P, with gaps, fill them with missing values from the other
+#There are two columns for P, with gaps, fill mg/L with values from ug/L
 dat <- dat %>%
   mutate(P_mg_l = if_else(is.na(P_mg_l) & !is.na(P_ug_l),
     P_ug_l / 1000,
     P_mg_l
-  ))
+  )) %>%
+  select(-P_ug_l)
 #
-dat <- dat %>%
-  mutate(P_ug_l = if_else(is.na(P_ug_l) & !is.na(P_mg_l),
-                          P_mg_l * 1000,
-                          P_ug_l
-  ))
-
+#
 ###################################################################################
 
 # reorder columns 
@@ -592,6 +599,7 @@ dat_labels_pH <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup() 
 
+jpeg("LP3+_pH_timeseries.jpeg", units="in", width=12, height=8, res=300)
 
 pH_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = pH, colour = land_use, group = interaction(site, land_use) )) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
@@ -605,6 +613,8 @@ scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A",
   geom_text_repel(data = dat_labels_pH, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, 
                   max.overlaps = 40) 
 pH_time2
+
+dev.off()
 
 #dev.off()
 
@@ -657,6 +667,9 @@ dat_labels_EC <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_EC_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 EC_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = EC_us_cm, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -668,11 +681,13 @@ EC_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
  # geom_text(data = dat_labels_EC, aes(label = site), size = 3, hjust = 0.5, vjust = -0.5, colour = "black")
   geom_text_repel(data = dat_labels_EC, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, 
-                  max.overlaps = 10) 
+                  max.overlaps = 40) 
 EC_time2
+
+dev.off()
 #
 #
-#### Fluoride ####
+#### F ####
 
 #tiff("LP3+_water_quality_Fluoride.tiff", units="in", width=6.5, height=4, res=300)
 Fluo <-   ggplot(dat, aes(x= fct_reorder (land_use, F_mg_l,  .fun = median, .na_rm = TRUE), y=F_mg_l, fill = land_use) ) +
@@ -696,7 +711,7 @@ F_report <-   ggplot(dat, aes(x= land_use, y=F_mg_l, fill = land_use) ) +
 F_report
 #
 #
-#### Chloride ####
+#### Cl ####
 
 #tiff("LP3+_water_quality_Chloride.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -764,7 +779,7 @@ geom_text_repel(data = dat_labels_Cl, aes(label = site, colour = land_use), size
  max.overlaps = 10) 
 Cl_time2
 
-#### Nitrite	#### 
+#### NO2	#### 
 #tiff("LP3+_water_quality_NO2.tiff", units="in", width=6.5, height=4, res=300)
 
 NO2 <-   ggplot(dat, aes(x= fct_reorder(land_use, NO2_mg_l, .fun = median, .na_rm = TRUE), y = NO2_mg_l, fill = land_use)) + 
@@ -812,6 +827,8 @@ dat_labels_NO2 <- dat %>%
   group_by(site, land_use) %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
+
+jpeg("LP3+_NO2_timeseries.jpeg", units="in", width=12, height=8, res=300)
 #
 NO2_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NO2_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
@@ -823,10 +840,12 @@ NO2_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
   geom_text_repel(data = dat_labels_NO2, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, 
-                  max.overlaps = 10) 
+                  max.overlaps = 40) 
 NO2_time2
 
-#### Nitrate ####
+dev.off()
+
+#### NO3 ####
 
 #("LP3+_water_quality_NO3.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -845,6 +864,8 @@ NO3 <-   ggplot(dat, aes(x= fct_reorder(land_use, NO3_mg_l, .fun = median, .na_r
   annotate("text", x =7, y = 160 , label = "b", size=3)
 NO3    #element_text(angle = 45, hjust = 1, size=12), 
 #
+sum(dat$NO3_mg_l > 50, na.rm = TRUE) #24
+
 NO3_report <-   ggplot(dat, aes(x= land_use, y = NO3_mg_l, fill = land_use)) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
@@ -875,6 +896,9 @@ dat_labels_NO3 <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_NO3_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 NO3_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NO3_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -884,8 +908,10 @@ NO3_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)  +
-  geom_text_repel(data = dat_labels_NO3, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, max.overlaps = 15) 
+  geom_text_repel(data = dat_labels_NO3, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, max.overlaps = 40) 
 NO3_time2
+
+dev.off() 
 #
 #
 #### Bromine (in the excel its Bromide which is the ion) ####
@@ -903,7 +929,7 @@ NO3_time2
 #
 #
 
-#### Phosphate	####
+#### PO4	####
 
 
 
@@ -956,6 +982,8 @@ dat_labels_PO4 <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+jpeg("LP3+_PO4_timeseries.jpeg", units="in", width=12, height=8, res=300)
+#
 PO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = PO4_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -965,14 +993,16 @@ PO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-geom_text_repel(data = dat_labels_PO4, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 30) 
+geom_text_repel(data = dat_labels_PO4, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 PO4_time2
+
+dev.off()
 #
 
 sd(subset(dat, site %in% c("RG", "WF", "RV"))$PO4_mg_l, na.rm = TRUE)
 #mean PO4 for mesocosm section in report
 
-#### Sulfate	#### 
+#### SO4	#### 
 
 #tiff("LP3+_water_quality_SO4.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1032,7 +1062,7 @@ dat_labels_SO4 <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
-tiff("LP3+_water_quality_SO4_time2.tiff", units="in", width=6.5, height=4, res=300)
+jpeg("LP3+_water_quality_SO4_time2.jpg", units="in", width=12, height=8, res=300)
 #
 SO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = SO4_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
@@ -1043,7 +1073,7 @@ SO4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_SO4, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_SO4, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, max.overlaps = 40) 
 SO4_time2
 #
 dev.off()
@@ -1105,7 +1135,7 @@ DOC_time
 #TC
 
 
-#### Total Nitrogen #####
+#### TN #####
 TN <- ggplot(dat, aes(x = land_use, y =TN_mg_l,  fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
@@ -1131,7 +1161,7 @@ TN_report
 #### Total organic carbon ##### This is a type and should actually be NPOC
 
 
-#### Lithium	####
+#### Li	####
 
 #tiff("LP3+_water_quality_Li.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1146,7 +1176,7 @@ TN_report
 #dev.off()    # new data is all 0
 
 
-#### Sodium	####
+#### Na	####
 
 #tiff("LP3+_water_quality_Na.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1193,6 +1223,10 @@ dat_labels_Na <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+
+jpeg("LP3+_Na_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Na_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Na_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1202,10 +1236,12 @@ Na_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)   +
-  geom_text_repel(data = dat_labels_Na, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_Na, aes(label = site, colour = land_use), size = 3,  box.padding = 0.35, max.overlaps = 40) 
 Na_time2
 
-#### Ammonium	####
+dev.off()
+
+#### NH4	####
 
 #tiff("LP3+_water_quality_NH4.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1255,9 +1291,13 @@ dat_labels_NH4 <- dat %>%
   summarise(NH4_mg_l = mean(NH4_mg_l, na.rm = TRUE), .groups = "drop") %>%
   group_by(site, land_use) %>%
   slice_min(order_by = month, n = 1) %>%
-  ungroup()
+  ungroup() 
 #
+
+jpeg("LP3+_NH4_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 NH4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = NH4_mg_l, colour = land_use, group = interaction(site, land_use))) +
+  #scale_y_log10() +  # labels not wprking with log... 
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
   stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
@@ -1266,10 +1306,12 @@ NH4_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)   + 
-  geom_text_repel(data = dat_labels_NH4, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_NH4, aes(x = month, y = NH4_mg_l, label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 NH4_time2
 
-#### Magnesium	#### 
+dev.off()
+
+#### Mg	#### 
 
 #tiff("LP3+_water_quality_Mg.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1333,6 +1375,9 @@ dat_labels_Mg <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_Mg_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Mg_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Mg_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1345,8 +1390,9 @@ Mg_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
 geom_text_repel(data = dat_labels_Mg, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Mg_time2
 
+dev.off()
 
-#### Potassium	#### 
+#### K	#### 
 
 #tiff("LP3+_water_quality_K.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1403,6 +1449,9 @@ dat_labels_K <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_K_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 K_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = K_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1412,10 +1461,12 @@ K_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_K, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_K, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 K_time2
+
+dev.off()
 #
-#### Calcium	#### 
+#### Ca	#### 
 
 #tiff("LP3+_water_quality_Ca.tiff", units="in", width=6.5, height=4, res=300)
 
@@ -1481,6 +1532,9 @@ dat_labels_Ca <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_Ca_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Ca_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Ca_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1490,8 +1544,10 @@ Ca_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_Ca, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_Ca, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Ca_time2
+
+dev.off()
 #
 #### Al	#####
 
@@ -1548,6 +1604,9 @@ dat_labels_Al <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_Al_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Al_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Al_ug_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1556,8 +1615,10 @@ Al_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_Al, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
+  geom_text_repel(data = dat_labels_Al, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 50) 
 Al_time2
+
+dev.off()
 #
 #### As ####
 
@@ -1600,6 +1661,7 @@ As_report
 #  theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" ))   #element_text(angle = 45, hjust = 1, size=12), 
 #Cd    # Only 4 data points non-zero
 
+min(dat$Cd_ug_l, na.rm=T)
 #dev.off()
 
 #### Cr	#### 
@@ -1615,6 +1677,8 @@ Cr <-   ggplot(dat, aes(x= fct_reorder (land_use, Cr_ug_l,  .fun = median, .na_r
   theme( legend.position = "none",  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Cr
 #dev.off()
+
+max(dat$Cr_ug_l, na.rm=T)
 #
 
 Cr_report <-   ggplot(dat, aes(x=land_use, y=Cr_ug_l, fill = land_use) ) +
@@ -1649,7 +1713,11 @@ dat_labels_Cr <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_Cr_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Cr_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Cr_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  scale_y_log10() + 
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
   stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Cr (µg l"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
@@ -1658,8 +1726,10 @@ Cr_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE)  +
-  geom_text_repel(data = dat_labels_Cr, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_Cr, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Cr_time2
+
+dev.off()
 #
 #### Cu	####
 
@@ -1674,6 +1744,7 @@ Cu <-   ggplot(dat, aes(x= fct_reorder (land_use, Cu_ug_l,  .fun = median, .na_r
   theme( legend.position = "none",   axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", "Semi-natural bog" = "#6DA34D" )) 
 Cu
 #dev.off()
+mean(dat$Cu_ug_l, na.rm=T)
 #
 Cu_report <-   ggplot(dat, aes(x= land_use, y=Cu_ug_l, fill = land_use) ) +
   geom_boxplot(outlier.shape = NA) + 
@@ -1707,6 +1778,9 @@ dat_labels_Cu <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_Cu_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Cu_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Cu_ug_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1716,9 +1790,10 @@ Cu_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_Cu, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 30) 
+  geom_text_repel(data = dat_labels_Cu, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Cu_time2
 
+dev.off()
 
 #### Fe	#### 
 
@@ -1773,7 +1848,11 @@ dat_labels_Fe <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_Fe_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Fe_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Fe_ug_l, colour = land_use, group = interaction(site, land_use))) +
+  scale_y_log10() + 
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
   stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Fe (µg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
@@ -1782,10 +1861,12 @@ Fe_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_Fe, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_Fe, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Fe_time2
 
-#### Inorganic Carbon ####
+dev.off()
+
+#### IC ####
 
 #tiff("LP3+_water_quality_IC.tiff", units="in", width=6.5, height=4, res=300)
  
@@ -1863,17 +1944,22 @@ dat_labels_Mn <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
-Mn_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Mn_ug_l, colour = land_use, group = interaction(site, land_use))) +
+
+jpeg("LP3+_Mn_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
+Mn_time2 <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Mn_ug_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
-  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Mn (µg L"^-1*")"),  colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    labs(y = expression("Mn (µg L"^-1*")"), colour = "Land Use") +  theme_minimal() +  theme(legend.text = element_text(size = 12),panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank()) +  
   scale_x_datetime(date_labels = "%b", date_breaks = "1 month") + 
   scale_colour_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-geom_text_repel(data = dat_labels_Mn, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_Mn, aes(label = site, colour = land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Mn_time2
+
+dev.off()
 #
 #### Ni	#### 
 
@@ -1923,6 +2009,10 @@ dat_labels_Ni <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+
+jpeg("LP3+_Ni_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Ni_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Ni_ug_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -1932,8 +2022,10 @@ Ni_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_Ni, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_Ni, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Ni_time2
+
+dev.off()
 #
 #### Pb ####	
 
@@ -2042,6 +2134,9 @@ dat_labels_P <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+
+jpeg("LP3+_TP_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 P_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = P_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -2051,8 +2146,10 @@ P_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, 
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-  geom_text_repel(data = dat_labels_P, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 20) 
+  geom_text_repel(data = dat_labels_P, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 P_time2
+
+dev.off()
 #
 #### Si ####
 #tiff("LP3+_water_quality_Si.tiff", units="in", width=6.5, height=4, res=300)
@@ -2102,6 +2199,8 @@ dat_labels_Si <- dat %>%
   slice_min(order_by = month, n = 1) %>%
   ungroup()
 #
+jpeg("LP3+_Si_timeseries.jpeg", units="in", width=12, height=8, res=300)
+
 Si_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month, y = Si_mg_l, colour = land_use, group = interaction(site, land_use))) +
   stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
   stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1) +  
@@ -2111,8 +2210,10 @@ Si_time2  <- ggplot(subset(dat, sampling_frequency =="repeated"), aes(x = month,
                                  "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , 
                                  "River/HLC" ="#FFB347",  "Semi-natural fen" ="#B5E48C", 
                                  "Semi-natural bog" = "#6DA34D" ), drop = FALSE) +
-geom_text_repel(data = dat_labels_Si, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 30) 
+geom_text_repel(data = dat_labels_Si, aes(label = site, colour=land_use), size = 3, box.padding = 0.35, max.overlaps = 40) 
 Si_time2
+
+dev.off()
 #
 #### combine plots ####
 # use cowplot bc ggarrange spacing is weird (too much white space)
@@ -2590,8 +2691,8 @@ qqline(resid(Cl_lmer))
 emmeans(Cl_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-NO2_lmer <- lmer(sqrt(NO2_mg_l) ~ land_use + (1 | site/site_label), data = dat)
-anova(NO2_lmer)  # p = 0.009783
+NO2_lmer <- lmer(log(NO2_mg_l) ~ land_use + (1 | site/site_label), data = dat)
+anova(NO2_lmer)  #
 summary(NO2_lmer)
 plot(NO2_lmer) #unequal
 qqnorm(resid(NO2_lmer))
@@ -2599,7 +2700,7 @@ qqline(resid(NO2_lmer))
 emmeans(NO2_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-NO3_lmer <- lmer(sqrt(NO3_mg_l) ~ land_use + (1 | site/site_label), data = dat)
+NO3_lmer <- lmer(log(NO3_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(NO3_lmer)
 summary(NO3_lmer)
 plot(NO3_lmer)  # fanned
@@ -2608,19 +2709,19 @@ qqline(resid(NO3_lmer))
 emmeans(NO3_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-PO4_lmer <- lmer(PO4_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+PO4_lmer <- lmer(log(PO4_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(PO4_lmer)
 summary(PO4_lmer)
-plot(PO4_lmer) # very fanned
+plot(PO4_lmer) # fanned
 qqnorm(resid(PO4_lmer))
 qqline(resid(PO4_lmer))
 emmeans(PO4_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-SO4_lmer <- lmer(SO4_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+SO4_lmer <- lmer(log(SO4_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(SO4_lmer)
 summary(SO4_lmer)
-plot(SO4_lmer)  # fanned
+plot(SO4_lmer)  # decent
 qqnorm(resid(SO4_lmer))
 qqline(resid(SO4_lmer))
 emmeans(SO4_lmer, pairwise ~ land_use) # pairwise differences
@@ -2629,19 +2730,19 @@ emmeans(SO4_lmer, pairwise ~ land_use) # pairwise differences
 # Li has very few data points, did not run stats
 #
 #
-Na_lmer <- lmer(Na_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+Na_lmer <- lmer(log(Na_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(Na_lmer) #p = 0.01
 summary(Na_lmer)
-plot(Na_lmer)  # fanned
+plot(Na_lmer)  # a little fanned
 qqnorm(resid(Na_lmer))
 qqline(resid(Na_lmer))
 emmeans(Na_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-NH4_lmer <- lmer(NH4_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
-anova(NH4_lmer)
+NH4_lmer <- lmer(log(NH4_mg_l) ~ land_use + (1 | site/site_label), data = dat)
+anova(NH4_lmer)  #p = 0.04
 summary(NH4_lmer)
-plot(NH4_lmer)  # very fanned
+plot(NH4_lmer)  # decent
 qqnorm(resid(NH4_lmer))
 qqline(resid(NH4_lmer))
 emmeans(NH4_lmer, pairwise ~ land_use) # pairwise differences
@@ -2656,16 +2757,16 @@ qqline(resid(Mg_lmer))
 emmeans(Mg_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-K_lmer <- lmer(K_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+K_lmer <- lmer(log(K_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(K_lmer)
 summary(K_lmer)
-plot(K_lmer)  # very fanned
+plot(K_lmer)  # decent
 qqnorm(resid(K_lmer))
 qqline(resid(K_lmer))
 emmeans(K_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-Ca_lmer <- lmer(Ca_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+Ca_lmer <- lmer(log(Ca_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(Ca_lmer)
 summary(Ca_lmer)
 plot(Ca_lmer)  # fanned
@@ -2674,37 +2775,37 @@ qqline(resid(Ca_lmer))
 emmeans(Ca_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-P_lmer <- lmer(P_mg_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+P_lmer <- lmer(log(P_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(P_lmer)
 summary(P_lmer)
-plot(P_lmer)  # very fanned
+plot(P_lmer)  # decent
 qqnorm(resid(P_lmer))
 qqline(resid(P_lmer))
 emmeans(P_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-Si_lmer <- lmer(sqrt(Si_mg_l) ~ land_use + (1 | site/site_label), data = dat)
+Si_lmer <- lmer(log(Si_mg_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(Si_lmer)
 summary(Si_lmer)
-plot(Si_lmer)  # fanned
+plot(Si_lmer)  # decent
 qqnorm(resid(Si_lmer))
 qqline(resid(Si_lmer))
 emmeans(Si_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-Al_lmer <- lmer(sqrt(Al_ug_l) ~ land_use + (1 | site/site_label), data = dat)
+Al_lmer <- lmer(log(Al_ug_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(Al_lmer)
 summary(Al_lmer)
-plot(Al_lmer)  # fanned
+plot(Al_lmer)  # decent
 qqnorm(resid(Al_lmer))
 qqline(resid(Al_lmer))
 emmeans(Al_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-As_lmer <- lmer(As_ug_l^(1/3) ~ land_use + (1 | site/site_label), data = dat)
+As_lmer <- lmer(log(As_ug_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(As_lmer)
 summary(As_lmer)
-plot(As_lmer)  # uneven
+plot(As_lmer)  # uneven, data distribution is pretty bad...
 qqnorm(resid(As_lmer))
 qqline(resid(As_lmer)) # really quite horrible even after transforming...
 emmeans(As_lmer, pairwise ~ land_use) # pairwise differences
@@ -2722,43 +2823,43 @@ qqline(resid(Cr_lmer)) # pretty bad even after transforming...
 emmeans(Cr_lmer, pairwise ~ land_use) 
 #
 #
-Cu_lmer <- lmer(sqrt(Cu_ug_l) ~ land_use + (1 | site/site_label), data = dat)
+Cu_lmer <- lmer(log(Cu_ug_l) ~ land_use + (1 | site/site_label), data = dat)
 anova(Cu_lmer)
 summary(Cu_lmer)
-plot(Cu_lmer)  # fanned
+plot(Cu_lmer)  # decent
 qqnorm(resid(Cu_lmer))
 qqline(resid(Cu_lmer))
 emmeans(Cu_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-Fe_lmer <- lmer(Fe_ug_l^(1/3) ~ land_use + (1 | site/site_label), data = subset(dat, Fe_ug_l <= 20000))
+Fe_lmer <- lmer(log(Fe_ug_l) ~ land_use + (1 | site/site_label), data = subset(dat, Fe_ug_l <= 20000))
 anova(Fe_lmer)
 summary(Fe_lmer)
-plot(Fe_lmer)  # very fanned and maybe 2 outliers
+plot(Fe_lmer)  # decent
 qqnorm(resid(Fe_lmer))
 qqline(resid(Fe_lmer))
 emmeans(Fe_lmer, pairwise ~ land_use)
 #
 #
-Mn_lmer <- lmer(Mn_ug_l^(1/3) ~ land_use + (1 | site/site_label),  data = subset(dat, Mn_ug_l <= 10000))
+Mn_lmer <- lmer(log(Mn_ug_l) ~ land_use + (1 | site/site_label),  data = subset(dat, Mn_ug_l <= 10000))
 anova(Mn_lmer)
 summary(Mn_lmer)
-plot(Mn_lmer)  # very fanned
+plot(Mn_lmer)  # decent
 qqnorm(resid(Mn_lmer))
 qqline(resid(Mn_lmer))
 emmeans(Fe_lmer, pairwise ~ land_use)
 #
 #
-Ni_lmer <- lmer(sqrt(Ni_ug_l) ~ land_use + (1 | site/site_label),  data = dat)
+Ni_lmer <- lmer(log(Ni_ug_l) ~ land_use + (1 | site/site_label),  data = dat)
 anova(Ni_lmer)
 summary(Ni_lmer)
-plot(Ni_lmer)  # very fanned, maybe 2 outliers
+plot(Ni_lmer)  #
 qqnorm(resid(Ni_lmer))
 qqline(resid(Ni_lmer))
 emmeans(Fe_lmer, pairwise ~ land_use)
 #
 #
-Pb_lmer <- lmer(Pb_ug_l ~ land_use + (1 | site/site_label),  data = dat)
+Pb_lmer <- lmer(log(Pb_ug_l) ~ land_use + (1 | site/site_label),  data = dat)
 anova(Pb_lmer)
 summary(Pb_lmer)
 plot(Pb_lmer)  #a bit uneven, not many data points
@@ -2767,7 +2868,7 @@ qqline(resid(Pb_lmer))
 emmeans(Pb_lmer, pairwise ~ land_use) # pairwise differences
 #
 #
-Zn_lmer <- lmer(sqrt(Zn_ug_l) ~ land_use + (1 | site/site_label),  data = subset(dat, Zn_ug_l <= 1000))
+Zn_lmer <- lmer(log(Zn_ug_l) ~ land_use + (1 | site/site_label),  data = subset(dat, Zn_ug_l <= 1000))
 anova(Zn_lmer)
 summary(Zn_lmer)
 plot(Zn_lmer)  # one outlier, fanned
