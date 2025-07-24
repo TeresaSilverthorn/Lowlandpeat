@@ -307,6 +307,9 @@ site_summary <- dat %>%
 # trim leading and trailing spaces
 dat$site_label <- trimws(dat$site_label)
 #
+#
+#### clean site_label ####
+#
 dat$site_label <- sapply(dat$site_label, function(x) {
   switch(x,
          "5 Eller Brook" = "Eller Brook",
@@ -317,9 +320,13 @@ dat$site_label <- sapply(dat$site_label, function(x) {
          "Burwell Mere" = "Burwell Fen Burwell Mere",
          "Burwell Ditch 1" = "Burwell Fen Ditch 1",
          "Burwell Ditch 2" = "Burwell Fen Ditch 2",
-         "Blakemere June" = "Blakemere",
-         "Alvanley June" = "Alvanley",
-         "Alvaney" = "Alvanley",
+         "Burwell South July" = "Burwell Fen Ditch 2",
+         "Burwell West July" = "Burwell Fen Ditch 1",
+         "Blakemere June" = "Blakemere Ditch",
+         "Blakemere" = "Blakemere Ditch", 
+         "Alvanley June" = "Alvanley Lake",
+         "Alvaney" = "Alvanley Lake",
+         "Crudgington Moor June" = "Crudgington Moor",
          "Foresters west August" = "Foresters West",
          "Foresters north August" = "Foresters North",
          "Foresters internal August" = "Foresters Internal",
@@ -335,6 +342,7 @@ dat$site_label <- sapply(dat$site_label, function(x) {
          "Great Fen Trundle Mead Pond" = "Great Fen Trundle Mere Pond",
          "Long Mere July" = "Great Fen Long Mere",
          "Great Fen Longmere" = "Great Fen Long Mere",
+         "Great Fen Chaldecote Drain" = "Great Fen Caldecote Drain",
          "Blackham Sluice July" = "Great Fen Blackham Sluice",
          "Great Fen Blackham sluice" = "Great Fen Blackham Sluice",
          "Hindmere July" = "Great Fen Hind Mere",
@@ -345,27 +353,34 @@ dat$site_label <- sapply(dat$site_label, function(x) {
          "Great Fen Middle Farm D1021 July" = "Great Fen Middle Farm D102i",
          "Great Fen New Dyke July" = "Great Fen New Dyke",
          "Great Fen New dyke" = "Great Fen New Dyke",
-         "Great Fen Mid Farm ?????" = "Great Fen Middle Farm",
+         "Great Fen Mid Farm ?????" = "Great Fen Middle Farm D102i",
+         "Harrison's Drove July" = "Harrison's Drove", 
          "Holme Fen Burnhams Mere" = "Holme Fen Burnham's Mere",
+         "Holme Mere July" =  "Holme Fen Burnham's Mere",
+         "Holme Fen 1 July" = "Holme Fen Ditch 1", 
+         "Holme Fen 2 July" = "Holme Fen Ditch 2", 
          "Holcroft Pool" = "Holcroft Moss Pool",
          "Holcroft Pore" = "Holcroft Moss Pore",
-         "Holcroft June" = "Holcroft Moss",
+         "Holcroft June" = "Holcroft Moss Pool",
          "Holiday Moss May" = "Holiday Moss",
          "Little Common July" = "Little Common Field ditch",
          "2. CL Ditch" = "Cheshire Lines ditch",
          "Cheshire Lines Ditch June" = "Cheshire Lines ditch",
          "Cheshire Lines Brook June" = "Cheshire Lines Brook",
          "Cheshire Lines" = "Cheshire Lines Brook",
+         "Del S1 P3 August" = "Blakemere Ditch", 
+         "Del S1 P3 August" = "Alvanley Lake", 
          "6 ML (Meadow Lane Ditch)" = "Meadow Lane Ditch",
          "Meadow Lane Ditch June" = "Meadow Lane Ditch",
+         "Risley main 5 July "  = "Risley Main", 
          "3 RBS (Rufford Boundary Sluice)" = "Rufford boundary sluice",
          "Rufford Boundary Sluice" = "Rufford boundary sluice",
          "Rufford Boundary Sluice June" = "Rufford boundary sluice",
          "Rufford Boundary Field Ditch June" = "Rufford boundary ditch",
          "RBS Field Ditch" = "Rufford boundary ditch",
          "RBS Smaller Field Ditch 4" = "Rufford boundary smaller field ditch",
-         "LP3 Lanfley street wet field NE Ditch" = "LP3 Langley street wet field NE Ditch",
-         "LP3 Lanfley street control  field N Ditch SW1" = "LP3 Langley street control  field N Ditch SW1",
+         "LP3 Lanfley street wet field NE Ditch" = "LP3 Langley street wet",
+         "LP3 Lanfley street control  field N Ditch SW1" = "LP3 Langley street control",
          "LWM Lake August" = "LWM Lake",
          "LWM Lake June" =  "LWM Lake",
          "LWM Pore August" = "LWM Pore",
@@ -463,6 +478,16 @@ dat$site_label <- sapply(dat$site_label, function(x) {
          "Woodwalton Fen ditch 2" = "Woodwalton Fen Ditch 2",
           x)  # Default case: returns original value if no match
 })
+#
+# Rename the Risley sites with if statement 
+dat <- dat %>%
+  mutate(site_label = case_when(
+    str_detect(site_label, "Main") & str_detect(site_label, "April") ~ "Risley Main",
+    TRUE ~ site_label)) %>%
+  mutate(site_label = case_when(
+    str_detect(site_label, "Mini") & str_detect(site_label, "April") ~ "Risley Mini",
+    TRUE ~ site_label))
+ 
 # Ask Mike about Roughs Roughs Catchwater Upper July and Catchwater Lower July (which is east/west)
 #
 #
@@ -474,17 +499,21 @@ coords <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/D
 dat <- merge(dat, coords[, .(site, lat, lon, peat_type)], by = "site", all.x = TRUE)
 #
 #
+# Think about adding point level coordinates--would need to streamline all of the site_label
+#
+#
+#
 #### Remove pore water #### 
 #Include for report, exclude for manuscript
 #
-# Remove pore water data for analysis, but keep in public dataset
-#dat <- dat %>%
-#  filter(!grepl("pore", site_label, ignore.case = TRUE))
 #
 # Make a column for pore water vs surface water
 dat <- dat %>%
   mutate(water_type = ifelse(grepl("pore", site_label, ignore.case = TRUE), 
                              "pore", "surface"))
+#
+# Remove pore water data for analysis, but keep in public dataset and keep in report
+dat <- subset(dat, water_type == "surface")
 #
 #
 #### Deal with P_ug_l and P_mg_L ####
@@ -3243,6 +3272,10 @@ dev.off()
 #### Save dat to csv file ####
 #
 #
+grasslands <- subset(dat, land_use=="Grassland")
+
+write.csv(grasslands, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/LP3+_wq_dat_grasslands.csv")
+
 write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/LP3+_wq_dat_combined.csv")
 #
 #
