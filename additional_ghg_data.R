@@ -122,112 +122,125 @@ dat_joined <- dat %>%
   left_join(water_qual, by = c("sample_name", "date"))
 #
 # Note that some GHG measures don't have accompanying wq data, for example, no wq data at Railway view nor Foresters or Roughs IDB on 20/05/2024
-
-
+#
+#### Add peat type ####
+coords <- fread("C:/Users/teres/Documents/LowlandPeat3/LP3+ Water quality data/Data/Ancil dat/sample_site_coordinates_and_peat_type.csv", encoding = "Latin-1")
+#
+# Join coords onto dat by 'Site'
+dat <- merge(dat, coords[, .(site,  peat_type)], by = "site", all.x = TRUE)
+#
+dat <- dat %>%
+  mutate(peat_type = ifelse(site == "MM", "bog", peat_type))
+#
+########################################################################
+## Change land use factors based on co-athor feedback
+# Amalgamate semi-natural bog and fen into one category "Conservation"
+#
+dat <- dat %>%
+  mutate(land_use = ifelse(land_use %in% c("Semi-natural bog", "Semi-natural fen", "Semi-natural"), "Conservation", as.character(land_use)), land_use = factor(land_use)) %>%
+  mutate(land_use = ifelse(site == "DEL", "Conservation", as.character(land_use)),  # Delamere is  rewetted bog, since it is conservation managed change
+         land_use = factor(land_use))  
+#
 ##############################
 ### Plots ####
 
 ### concentrations ###
-CO2_conc <- ggplot(dat, aes(x = fct_reorder(land_use, CO2_mg_l, .fun = median, .na_rm = TRUE), y = CO2_mg_l, fill = land_use)) +
+CO2_conc <- ggplot(dat, aes(x = fct_reorder(land_use, CO2_mg_l, .fun = mean, .na_rm = TRUE), y = CO2_mg_l, fill = land_use)) +
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values=c(24,21))+
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression(CO[2] ~ "(mg L"^-1*")"),  x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 100), labels = scales::number)+
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural" = "#6DA34D" ))  +
-  annotate("text", x =1, y = 300 , label = "a", size=3) + 
-  annotate("text", x =2, y = 300 , label = "ab", size=3) +
-  annotate("text", x =3, y = 300 , label = "ab", size=3) +
-  annotate("text", x =4, y = 300 , label = "ab", size=3) +
-  annotate("text", x =5, y = 300 , label = "ab", size=3) +
-  annotate("text", x =6, y = 300 , label = "b", size=3)
+  theme(legend.title=element_blank(), legend.position = "top", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" ,  "River/HLC" ="#FFB347",  "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
 CO2_conc 
-# Sig diffs: Rewetted bog - Cropland                -8.580 2.54 57  -3.382  0.0157
+# land use p = 0.16
 #
 #
-CH4_conc <- ggplot(dat, aes( x= fct_reorder(land_use, CH4_ug_l, .fun = median, .na_rm = TRUE), y = CH4_ug_l, fill = land_use)) + # Use fill for land use categories
+CH4_conc <- ggplot(dat, aes( x= fct_reorder(land_use, CH4_ug_l, .fun = mean, .na_rm = TRUE), y = CH4_ug_l, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values=c(24,21))+
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs( y = expression(CH[4] ~ "(μg L"^-1*")"),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   #scale_y_log10() +
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(10, 100, 1000, 10000), labels = scales::number)+
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",   "Semi-natural" = "#6DA34D" )) 
+  theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) + guides(fill = "none") +
+  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" ,  "River/HLC" ="#FFB347",   "Conservation" = "#6DA34D" )) 
 CH4_conc 
 #
 #
-N2O_conc <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_ug_l, .fun = median, .na_rm = TRUE), y = N2O_ug_l, fill = land_use)) + # Use fill for land use categories
+N2O_conc <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_ug_l, .fun = mean, .na_rm = TRUE), y = N2O_ug_l, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) +
+  geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values=c(24,21))+
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression(N[2]*O ~ " (μg" ~ L^{-1} ~ ")"),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100, 1000), labels = scales::number) +
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural" = "#6DA34D" )) 
+  theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "River/HLC" ="#FFB347",  "Conservation" = "#6DA34D" )) + guides(fill = "none") 
 N2O_conc #axis.text.x = element_text(angle = 45, hjust = 1, size=12),
 #
 #
 ###############################################################################
 ### fluxes ###
 #
-CO2_flux <- ggplot(dat, aes( x= fct_reorder(land_use, CO2_g_m2_d, .fun = median, .na_rm = TRUE), y = CO2_g_m2_d, fill = land_use)) + # Use fill for land use categories
+CO2_flux <- ggplot(dat, aes( x= fct_reorder(land_use, CO2_g_m2_d, .fun = mean, .na_rm = TRUE), y = CO2_g_m2_d, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values=c(24,21))+
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs(y = expression(g~CO[2]*~m^-2*~d^-1), x = NULL, fill = " " ) +
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 3, 10, 30), labels = scales::number)+
-  theme( legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",   "Semi-natural" = "#6DA34D" )) 
+  theme(legend.title=element_blank(), legend.position = "top", axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",   "Conservation" = "#6DA34D" )) + guides(fill = "none") 
 CO2_flux #axis.text.x = element_text(angle = 45, hjust = 1, size=12),
 #
 #
-CH4_flux <- ggplot(dat, aes(x= fct_reorder(land_use, CH4_mg_m2_d, .fun = median, .na_rm = TRUE), y = CH4_mg_m2_d, fill = land_use)) + # Use fill for land use categories
+CH4_flux <- ggplot(dat, aes(x= fct_reorder(land_use, CH4_mg_m2_d, .fun = mean, .na_rm = TRUE), y = CH4_mg_m2_d, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) +
+  geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values=c(24,21))+
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs( y = "CO2",  x = NULL,   fill = "Land Use" ) +
   labs( y = expression(~mg~CH[4]*~m^-2~d^-1),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   #scale_y_log10() +
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100, 1000), labels = scales::number)+
-    theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=12),
-         panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",   "Semi-natural" = "#6DA34D" )) 
+    theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" ,  "River/HLC" ="#FFB347",   "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
 CH4_flux # axis.text.x = element_text(angle = 45, hjust = 1, size=12),
 #
 #
-N2O_flux <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_mg_m2_d, .fun = median, .na_rm = TRUE), y = N2O_mg_m2_d, fill = land_use)) + # Use fill for land use categories
+N2O_flux <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_mg_m2_d, .fun = mean, .na_rm = TRUE), y = N2O_mg_m2_d, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(fill = land_use), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values=c(24,21))+
   stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
   labs( y = "CO2",  x = NULL,   fill = "Land Use" ) +
   labs(y = expression(mg~N[2]*`O`*~m^-2~d^-1),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   #scale_y_log10() +
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100, 1000), labels = scales::number)+
-  theme( legend.position = "none", axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),
-         panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",  "Semi-natural" = "#6DA34D" )) 
+  theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "River/HLC" ="#FFB347",  "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
 N2O_flux
-
+#
 ################################################################################
-## combine plots ##
+#### combine plots ####
 #
 #
 jpeg("additional_ghg_plots_all.jpeg", units="in", width=8, height=10, res=300)
 
-flux_conc <-  plot_grid(CO2_conc, CO2_flux, CH4_conc, CH4_flux, N2O_conc, N2O_flux,
-                        ncol=2, align="v", labels = c("A", "B", "C", "D", "E", "F"))
+flux_conc <- ggarrange(CO2_conc, CO2_flux, CH4_conc, CH4_flux, N2O_conc, N2O_flux,
+                       nrow = 3, ncol = 2, align = "v", common.legend = T, labels = c("A", "B", "C", "D", "E", "F"))
 flux_conc
 
 dev.off()
-
 
 
 
@@ -334,20 +347,20 @@ AIC(CO2_conc_lmer, CO2_conc_lmer_log) # lower AIC with log transformation, so go
 # Linear models
 CO2_conc_lm_log <- lm(log(CO2_mg_l) ~ land_use, data = dat)
 summary(CO2_conc_lm_log)
-anova(CO2_conc_lm_log) # p = 0.04
+anova(CO2_conc_lm_log) # p = 0.16
 emmeans(CO2_conc_lm_log, pairwise ~ land_use) # pairwise differences: rewetted bog and cropland p = 0.02
 ###
 min(dat$CO2_g_m2_d, na.rm = TRUE)
 CO2_flux_lm_log <- lm(log(CO2_g_m2_d+1.4765558) ~ land_use, data = dat)
 summary(CO2_flux_lm_log)
-anova(CO2_flux_lm_log)  # p= 0.07 so not sig
+anova(CO2_flux_lm_log)  # p= 0.06 so not sig
 #
 #
 # 
 CH4_conc_lm_log <- lm(log(CH4_ug_l) ~ land_use, data = dat)
 qqnorm(resid(CH4_conc_lm_log))
 qqline(resid(CH4_conc_lm_log)) # log transforming improves residuals
-anova(CH4_conc_lm_log) # not sig p=0.12
+anova(CH4_conc_lm_log) # not sig p=0.32
 summary(CH4_conc_lm_log)
 ###
 min(dat$CH4_mg_m2_d, na.rm = TRUE)
@@ -355,14 +368,14 @@ CH4_flux_lm_log <- lm(log(CH4_mg_m2_d+1.3956323) ~ land_use, data = dat)
 qqnorm(resid(CH4_flux_lm_log))
 qqline(resid(CH4_flux_lm_log))
 summary(CH4_flux_lm_log)
-anova(CH4_flux_lm_log)  # p= 0.1
+anova(CH4_flux_lm_log)  # p= 0.47
 #
 #
 #
 N2O_conc_lm_log <- lm(log(N2O_mg_l) ~ land_use, data = dat)
 qqnorm(resid(N2O_conc_lm_log))
 qqline(resid(N2O_conc_lm_log)) # log transformation improves residuals
-anova(N2O_conc_lm_log) # p = 0.054 (not sig)
+anova(N2O_conc_lm_log) # p = 0.21 (not sig)
 summary(N2O_conc_lm_log)
 #
 ###]
@@ -370,9 +383,9 @@ min(dat$N2O_mg_m2_d, na.rm = TRUE) #-0.04972287
 N2O_flux_lm_log <- lm(log(N2O_mg_m2_d+1.04972287) ~ land_use, data = dat ) #there is just one negative value
 qqnorm(resid(N2O_flux_lm_log))
 qqline(resid(N2O_flux_lm_log)) # log transformation improves residuals
-anova(N2O_flux_lm_log) # p = 0.059 (not sig)
+anova(N2O_flux_lm_log) # p = 0.32 (not sig)
 summary(N2O_flux_lm_log)
-
+################################################################################
 #### Correlation between GHG and WQ ####
 # Make a correlation plot (try both Spearman and Pearson)
 #
@@ -380,11 +393,18 @@ summary(N2O_flux_lm_log)
 #subset data that has both GHG and wq
 dat_cor <- subset(dat_joined, !is.na(pH)) 
 dat_numeric <- select(dat_cor, where(is.numeric))
+#
 dat_numeric <- dat_numeric %>%
-  select(-X, -CO2_mg_m2_d, -CO2_g_m2_d, -CH4_mg_m2_d, -N2O_mg_m2_d, -CH4_ug_l, -N2O_mg_l,  -As_ug_l, -Cd_ug_l, -Cr_ug_l, -Li_mg_l, -IC_mg_l, -TC_mg_l, -TN_mg_l, -P_ug_l, -Pb_ug_l, -Cu_ug_l, -Zn_ug_l, -C_mol_L, -C_umol_L, -N_umol_L, -P_umol_L, -NH4_N_mg_l, -NO2_N_mg_l, -NO3_N_mg_l, -PO4_P_mg_l, -TIN_mg_l, -N_redfield, -P_redfield, -sum_CNP, -TIN, -C_tern, -N_tern, -P_tern, -CN_ratio, -CP_ratio) # drop empty columns and drop NPOC, Cd, Cr, Li bc mostly 0, as well as redundant GHG/stoich vars (use only conc) # because there are quite a lot of variables, 
+  select(-X, -CO2_mg_m2_d, -CO2_g_m2_d, -CH4_mg_m2_d, -N2O_mg_m2_d, -CH4_ug_l, -N2O_mg_l,  -As_ug_l, -Cd_ug_l, -Cr_ug_l, -Li_mg_l, -Si_ug_l, -Hg_ug_l, -NPOC_mg_l, -IC_mg_l, -TC_mg_l, -TN_mg_l, -Pb_ug_l, -Cu_ug_l, -Zn_ug_l,  -C_umol_L, -N_umol_L, -P_umol_L, -NH4_N_mg_l, -NO2_N_mg_l, -NO3_N_mg_l, -PO4_P_mg_l, -TIN_mg_l, -N_redfield, -P_redfield, -sum_CNP, -C_tern, -N_tern, -P_tern, -CN_ratio, -CP_ratio, -lat, -lon) # drop empty columns and drop NPOC, Cd, Cr, Li bc mostly 0, as well as redundant GHG/stoich vars (use only conc) # because there are quite a lot of variables, 
+#
 zero_counts <- sapply(dat_numeric, function(x) sum(x == 0, na.rm = TRUE))  #drop also WQ vars with a lot of 0: Pb, Cu, Zn
 #
-
+# Remove units from column names
+colnames(dat_numeric) <- gsub("_ug_l|_mg_l|_us_cm", "", colnames(dat_numeric))
+#
+# Update labels
+names(dat_numeric)[names(dat_numeric) == 'NP_ratio'] <- 'N:P'
+#
 # make data frame into matrix
 dat_matrix <- Hmisc::rcorr(as.matrix(dat_numeric),  type = "spearman")
 #
@@ -394,7 +414,7 @@ p_mat <- dat_matrix$P
 # Make correlation plot
 jpeg("LP3+_GHG_corrplot_spearman.jpeg", units="in", width=6, height=6, res=300)
 
-corrplot(cor_mat,  type="upper", diag=FALSE, tl.col = "black",
+corrplot(cor_mat,  type="upper", diag=FALSE, tl.col = "black", order="hclust", tl.srt=45, tl.cex = 0.9, 
          p.mat = p_mat, sig.level = 0.05, insig = "blank") 
 
 dev.off()
