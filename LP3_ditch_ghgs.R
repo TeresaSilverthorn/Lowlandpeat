@@ -1,572 +1,734 @@
 #### R script to calculate ditch GHG fluxes from concentration data ####
-
-# Note sample naming conventions: Letter representing the date, official LP3 site code, ditch point (1., 2. ,3., or 4.), and replicate 1 or 2 (or AMB for ambient air).  
-# D  12/2024; E 01/2025; F 02/2025 
+# Load packages
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(purrr)
+library(readxl)
+library(lubridate)
+#
+# Notes from Mike on flux calc excel sheet: I’ve attached a sheet for diss GHGs. Fill in the green columns – hopefully self explanatory. Can assume 0m ASL elevation.The “fluxes” sheet, again add to green/yellow columns. I would set k600 as 0.33 m/d which was the median k600 for Rosedene in this paper (which only reports k, not k600, but nevermind)
+#https://www.sciencedirect.com/science/article/pii/S0048969716324366
 #
 #
 # Site file directory for figures 
 setwd("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Figures")
 #
-## Load in necessary packages
-library(readxl)
-library(dplyr)
-library(ggplot2)
-library(stringr)
-library(tidyr)
-#
-#Read in the GHG concentration data
-#
-dat1 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/LOWLAND_December_16_12_2024.XLS", range="A5:I213") # December 2024 East Anglia sites
-#
-dat2 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/LOWLAND_January_2025.XLS", range="A5:I126")   # December 2024 and January 2025 Wrights Farm 
-#
-dat3 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/LOWLAND_13_02_2025.XLS", range="A5:I222")   # February 2025 East Anglia sites
-#
-##
-# Drop rows with NAs or repeated headings
-#
-dat1 <- dat1 %>%
-  slice(-c(69, 70, 139, 140))
-#
-dat2 <- dat2 %>%
-  slice(-c(40, 41, 81, 82))
-#
-dat3 <- dat3 %>%
-  slice(-c(72, 73, 145, 146))
-#
-#
-# Rename columns
-colnames(dat1)[colnames(dat1) == "Sample Name"] <- "sample_code"
-colnames(dat1)[colnames(dat1) == "Compound Name"] <- "gas"
-colnames(dat1)[colnames(dat1) == "Amount"] <- "amount"
-#
-colnames(dat2)[colnames(dat2) == "Sample Name"] <- "sample_code"
-colnames(dat2)[colnames(dat2) == "Compound Name"] <- "gas"
-colnames(dat2)[colnames(dat2) == "Amount"] <- "amount"
-#
-colnames(dat3)[colnames(dat3) == "Sample Name"] <- "sample_code"
-colnames(dat3)[colnames(dat3) == "Compound Name"] <- "gas"
-colnames(dat3)[colnames(dat3) == "Amount"] <- "amount"
-#
-#
-# Replace underscores with dashes
-dat1 <- dat1 %>%
-  mutate(sample_code = gsub("_", "-", sample_code))
-#
-dat2 <- dat2 %>%
-  mutate(sample_code = gsub("_", "-", sample_code))
-#
-dat3 <- dat3 %>%
-  mutate(sample_code = gsub("_", "-", sample_code))
-#
-#
-#
-## Read in the ancillary data
-#
-ancil_dat <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Ancil_dat/ditch_ancillary_data_2025-03-18.csv")
-#
-#Import the sample list to note which vials were wet
-list <- readxl::read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/Samples list.xlsx")
-#
-#
-# Combine data and ancillary data
-#
-dat1 <- dat1 %>%
-  left_join(ancil_dat, by = "sample_code") 
-#
-dat2 <- dat2 %>%
-  left_join(ancil_dat, by = "sample_code") 
-#
-dat3 <- dat3 %>%
-  left_join(ancil_dat, by = "sample_code") 
-#
-#
-#Add a new column for site
-dat1 <- dat1 %>%
-  mutate(site = sub("D-([A-Za-z]+(?:-[A-Za-z0-9]+)*)(?:-[0-9.]+)?", "\\1", sample_code), #extract the site name
-  site = if_else(grepl("Std|Dummy|unknown|AMB", site), NA_character_, site), 
-  ditch = as.numeric(sub(".*-(\\d+)[.].*", "\\1", sample_code)))
-#
-dat2 <- dat2 %>%
-  mutate(site = sub("[DJ]-([A-Za-z]+(?:-[A-Za-z0-9]+)*)(?:-[0-9.]+)?", "\\1", sample_code), #extract the site name
-         site = if_else(grepl("Std|Dummy|unknown|AMB", site), NA_character_, site), 
-         ditch = as.numeric(sub(".*-(\\d+)[.].*", "\\1", sample_code)))
-#
-dat3 <- dat3 %>%
-  mutate(site = sub("F-([A-Za-z]+(?:-[A-Za-z0-9]+)*)(?:-[0-9.]+)?", "\\1", sample_code), #extract the site name
-         site = if_else(grepl("Stnd|Dummy|unknown|AMB", site), NA_character_, site), 
-         ditch = as.numeric(sub(".*-(\\d+)[.].*", "\\1", sample_code)))
-#
-#
-# Change column formats
-dat1$amount <- as.numeric(dat1$amount)
-dat1$Area <- as.numeric(dat1$Area)
-#
-dat2$amount <- as.numeric(dat2$amount)
-dat2$Area <- as.numeric(dat2$Area)
-#
-dat3$amount <- as.numeric(dat3$amount)
-dat3$Area <- as.numeric(dat3$Area)
-#
-#
-#
-#### Calibration curves ####
-#
-#From Julia Drewer: Just to clarify, you don’t use the concentrations from the GC output file. The ones listed in there are based on outdated calibrations but it’s in the system, please ignore those. All you need from the output file is the peak area or peak height. You need to calculate your own concentrations using our standards and either the peak area or peak height based on our standard concentrations that I have sent you in the past. It should be a linear calibration curve for all 3 gases and you use an average of all sets of standards included in each run. If you don’t have the concentrations of our standards to hand, Mark and Aurelia can send you the table again.
-#
-#### cal1 is for East Anglia Dec '24
-#### cal2 is for Wrights Dec '24 and Jan '25
-#### cal3 is for East Anglia Feb '25
-#
-CO2cal1 <- dat1 %>% #get the average of the standards
-  filter(str_detect(sample_code, "Std") & gas == "CO2") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-CO2cal2 <- dat2 %>% #get the average of the standards
-  filter(str_detect(sample_code, "Std") & gas == "CO2") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-CO2cal3 <- dat3 %>% #get the average of the standards
-  filter(str_detect(sample_code, "Stnd") & gas == "CO2") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-#
-#Standard concentrations for GHGs standards
-#Standard ID	Concentration (ppm)	from Aurelia's email 19/12/2024
-#ID  N2O	  CH4	  CO2
-#1	0.226	 1.21	  204.3
-#2	0.357	 1.8	  436.5
-#3	0.521	  5.2	  821
-#4	1.0002	51.6	2016.4
-#
-CO2cal1 <- CO2cal1 %>%
-  mutate(CO2_ppm = case_when(
-    sample_code == "Std1" ~ 204.3,  # Replace with actual concentrations
-    sample_code == "Std2" ~ 436.5,
-    sample_code == "Std3" ~ 821,
-    sample_code == "Std4" ~ 2016.4,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-CO2cal2 <- CO2cal2 %>%
-  mutate(CO2_ppm = case_when(
-    sample_code == "Std1" ~ 204.3,  # Replace with actual concentrations
-    sample_code == "Std2" ~ 436.5,
-    sample_code == "Std3" ~ 821,
-    sample_code == "Std4" ~ 2016.4,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-CO2cal3 <- CO2cal3 %>%
-  mutate(CO2_ppm = case_when(
-    sample_code == "Stnd1" ~ 204.3,  # Replace with actual concentrations
-    sample_code == "Stnd2" ~ 436.5,
-    sample_code == "Stnd3" ~ 821,
-    sample_code == "Stnd4" ~ 2016.4,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-#
-#plot the calibration curve
-CO2_cal_curve <- ggplot(CO2cal3, aes(x = CO2_ppm, y = Area)) + #replace CO2cal1 with relevatn dataset
-  geom_point(size = 3, color = "blue") +  # Scatter points
-  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linear regression
-  labs(x = "Known Concentration CO2 ppm", y = "Average Area",  title = "CO2 Calibration Curve") +
-  theme_minimal()
-CO2_cal_curve
-#
-#linear relationship
-CO2_model1 <- lm(Area ~ CO2_ppm, data = CO2cal1)
-summary(CO2_model1)  # slope: 1.42717 and intercept: 76.09342
-#
-CO2_model2 <- lm(Area ~ CO2_ppm, data = CO2cal2)
-summary(CO2_model2)  # slope: 1.51805 and intercept: 84.63979   
-#
-CO2_model3 <- lm(Area ~ CO2_ppm, data = CO2cal3)
-summary(CO2_model3)  # slope: 1.461428 and intercept: 23.102572     
-#
-#
-#predict, y=mx+b solving for x=(y-b)/m
-#
-dat1 <- dat1 %>%
-  mutate(CO2_ppm = ifelse(gas == "CO2", ((Area - 76.09342) / 1.42717), NA))
-#
-dat2 <- dat2 %>%
-  mutate(CO2_ppm = ifelse(gas == "CO2", ((Area - 84.63979) / 1.51805), NA))
-#
-dat3 <- dat3 %>%
-  mutate(CO2_ppm = ifelse(gas == "CO2", ((Area - 23.102572) / 1.461428), NA))
-#
-#
-###############################################################################
-#### CH4 calibration curves ####
-#
-CH4cal1 <- dat1 %>% # get the average of the standards
-  filter(str_detect(sample_code, "Std") & gas == "CH4") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-CH4cal2 <- dat2 %>% # get the average of the standards
-  filter(str_detect(sample_code, "Std") & gas == "CH4") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-CH4cal3 <- dat3 %>% # get the average of the standards
-  filter(str_detect(sample_code, "Stnd") & gas == "CH4") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-#Standard concentrations for GHGs standards
-#Standard ID	Concentration (ppm)	from Aurelia's email 19/12/2024
-#ID  N2O	  CH4	  CO2
-#1	0.226	 1.21	  204.3
-#2	0.357	 1.8	  436.5
-#3	0.521	  5.2	  821
-#4	1.0002	51.6	2016.4
-#
-CH4cal1 <- CH4cal1 %>%
-  mutate(CH4_ppm = case_when(
-    sample_code == "Std1" ~ 1.21,  # Replace with actual concentrations
-    sample_code == "Std2" ~ 1.8,
-    sample_code == "Std3" ~ 5.2,
-    sample_code == "Std4" ~ 51.6,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-CH4cal2 <- CH4cal2 %>%
-  mutate(CH4_ppm = case_when(
-    sample_code == "Std1" ~ 1.21,  # Replace with actual concentrations
-    sample_code == "Std2" ~ 1.8,
-    sample_code == "Std3" ~ 5.2,
-    sample_code == "Std4" ~ 51.6,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-CH4cal3 <- CH4cal3 %>%
-  mutate(CH4_ppm = case_when(
-    sample_code == "Stnd1" ~ 1.21,  # Replace with actual concentrations
-    sample_code == "Stnd2" ~ 1.8,
-    sample_code == "Stnd3" ~ 5.2,
-    sample_code == "Stnd4" ~ 51.6,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-#
-#
-#plot the calibration curve
-#
-CH4_cal_curve <- ggplot(CH4cal3, aes(x = CH4_ppm, y = Area)) +   # replace with relevant data
-  geom_point(size = 3, color = "blue") +  # Scatter points
-  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linear regression
-  labs( x = "Known Concentration CH4 ppm", y = "Average Area", title = "CH4 Calibration Curve") +
-  theme_minimal()
-CH4_cal_curve
-#
-#linear relationship
-CH4_model1 <- lm(Area ~ CH4_ppm, data = CH4cal1)
-summary(CH4_model1)  # slope: 1.797356 and intercept: 1.952527   
-#
-CH4_model2 <- lm(Area ~ CH4_ppm, data = CH4cal2)
-summary(CH4_model2)  # slope: 1.84116 and intercept: 1.89674 
-#
-CH4_model3 <- lm(Area ~ CH4_ppm, data = CH4cal3)
-summary(CH4_model3)  # slope: 1.8210768 and intercept: 1.8022239   
-#
-#
-#
-#predict, y=mx+b solving for x=(y-b)/m
-dat1 <- dat1 %>%
-  mutate(CH4_ppm = ifelse(gas == "CH4", ((Area-1.952527 )/1.797356), NA))
-#
-dat2 <- dat2 %>%
-  mutate(CH4_ppm = ifelse(gas == "CH4", ((Area-1.89674 )/1.84116), NA))
-#
-dat3 <- dat3 %>%
-  mutate(CH4_ppm = ifelse(gas == "CH4", ((Area-1.8022239 )/1.8210768), NA))
-#
-#
-#
-#
-###############################################################################
-#### N2O calibration curves ####
-#
-N2Ocal1 <- dat1 %>% # get the average of the standards
-  filter(str_detect(sample_code, "Std") & gas == "N2O") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-N2Ocal2 <- dat2 %>% # get the average of the standards
-  filter(str_detect(sample_code, "Std") & gas == "N2O") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-N2Ocal3 <- dat3 %>% # get the average of the standards
-  filter(str_detect(sample_code, "Stnd") & gas == "N2O") %>%
-  mutate(sample_code = factor(sample_code), 
-         Area = as.numeric(Area))  %>%
-  group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
-#
-#Standard concentrations for GHGs standards
-#Standard ID	Concentration (ppm)	from Aurelia's email 19/12/2024
-#ID  N2O	  CH4	  CO2
-#1	0.226	 1.21	  204.3
-#2	0.357	 1.8	  436.5
-#3	0.521	  5.2	  821
-#4	1.0002	51.6	2016.4
-#
-N2Ocal1 <- N2Ocal1 %>%
-  mutate(N2O_ppm = case_when(
-    sample_code == "Std1" ~ 0.226,  # Replace with actual concentrations
-    sample_code == "Std2" ~ 0.357,
-    sample_code == "Std3" ~ 0.521,
-    sample_code == "Std4" ~ 1.002,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-N2Ocal2 <- N2Ocal2 %>%
-  mutate(N2O_ppm = case_when(
-    sample_code == "Std1" ~ 0.226,  # Replace with actual concentrations
-    sample_code == "Std2" ~ 0.357,
-    sample_code == "Std3" ~ 0.521,
-    sample_code == "Std4" ~ 1.002,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-N2Ocal3 <- N2Ocal3 %>%
-  mutate(N2O_ppm = case_when(
-    sample_code == "Stnd1" ~ 0.226,  # Replace with actual concentrations
-    sample_code == "Stnd2" ~ 0.357,
-    sample_code == "Stnd3" ~ 0.521,
-    sample_code == "Stnd4" ~ 1.002,
-    TRUE ~ NA_real_  # Ensures numeric output
-  ))
-#
-#
-#plot the calibration curve
-#
-N2O_cal_curve <- ggplot(N2Ocal3, aes(x = N2O_ppm, y = Area)) + # replace with relevant calibration dat
-  geom_point(size = 3, color = "blue") +  # Scatter points
-  geom_smooth(method = "lm", se = FALSE, color = "red") +  # Linear regression
-  labs( x = "Known Concentration N2O ppm", y = "Average Area", title = "N2O Calibration Curve") +
-  theme_minimal()
-N2O_cal_curve
-#
-#linear relationship
-N2O_model1 <- lm(Area ~ N2O_ppm, data = N2Ocal1)
-summary(N2O_model1)  # slope: 3069.64 and intercept: 244.54
-#
-N2O_model2 <- lm(Area ~ N2O_ppm, data = N2Ocal2)
-summary(N2O_model2) # slope: 1523.40 and intercept: 111.51 
-#
-N2O_model3 <- lm(Area ~ N2O_ppm, data = N2Ocal3)
-summary(N2O_model3) # slope: 3034.11 and intercept: 200.49       
-#
-#
-#
-#predict, y=mx+b solving for x=(y-b)/m
-dat1 <- dat1 %>%
-  mutate(N2O_ppm = ifelse(gas == "N2O", ((Area-244.54)/3069.64), NA))
-#
-dat2 <- dat2 %>%
-  mutate(N2O_ppm = ifelse(gas == "N2O", ((Area-111.51)/1523.40), NA))
-#
-dat3 <- dat3 %>%
-  mutate(N2O_ppm = ifelse(gas == "N2O", ((Area-200.49)/3034.11), NA))
-#
-#
-#
-#
-#### Check the atmospheric levels ####
-#
-dat_amb1 <- dat1 %>%
-  filter(str_detect(sample_code, "AMB")) %>%
-  mutate(  site = sub("D-([A-Za-z]{2})-.*", "\\1", sample_code))
-#
-dat_amb2 <- dat2 %>%
-  filter(str_detect(sample_code, "AMB")) %>%
-  mutate(  site = sub("D-([A-Za-z]{2})-.*", "\\1", sample_code))
-#
-dat_amb3 <- dat3 %>%
-  filter(str_detect(sample_code, "AMB")) %>%
-  mutate(  site = sub("D-([A-Za-z]{2})-.*", "\\1", sample_code))
-#
-#
-#
-mean_amb_by_gas1 <- dat_amb1 %>%
-  group_by(gas) %>%
-  summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
-            mean_CH4ppm = mean(CH4_ppm, na.rm = TRUE),
-            mean_N2Oppm = mean(N2O_ppm, na.rm = TRUE))
-#
-print(mean_amb_by_gas1)
-#
-#CO2       475    (recorded atmospheric levels: 425ppm)   
-#CH4       2.04    (recorded atmospheric levels: 1.9 ppm)
-#N2O       0.385    (recorded atmospheric levels:0.336 ppm)
-#
-#These values make sense
-#
-#
-mean_amb_by_gas2 <- dat_amb2 %>%
-  group_by(gas) %>%
-  summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
-            mean_CH4ppm = mean(CH4_ppm, na.rm = TRUE),
-            mean_N2Oppm = mean(N2O_ppm, na.rm = TRUE))
-#
-print(mean_amb_by_gas2)
-#
-#CO2       630    (recorded atmospheric levels: 425ppm)   # this seems a bit high, could be contamination by breathing
-#CH4       2.08    (recorded atmospheric levels: 1.9 ppm)
-#N2O       0.448    (recorded atmospheric levels:0.336 ppm)
-#
-#
-mean_amb_by_gas3 <- dat_amb3 %>%
-  group_by(gas) %>%
-  summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
-            mean_CH4ppm = mean(CH4_ppm, na.rm = TRUE),
-            mean_N2Oppm = mean(N2O_ppm, na.rm = TRUE))
-#
-print(mean_amb_by_gas3)
-#
-#CO2       385    (recorded atmospheric levels: 425ppm)   
-#CH4       1.92   (recorded atmospheric levels: 1.9 ppm)
-#N2O       0.364    (recorded atmospheric levels:0.336 ppm)
-# These values make sense
-#
-#
-#
-##################################################################################
-#### save as file ####
-#
-# Select specific columns
-subset_dat1 <- dat1 %>% select(gas, sample_code, date, time, water_temp_c, CO2_ppm, CH4_ppm, N2O_ppm)
-subset_dat2 <- dat2 %>% select(gas, sample_code, date, time, water_temp_c, CO2_ppm, CH4_ppm, N2O_ppm)
-subset_dat3 <- dat3 %>% select(gas, sample_code, date, time, water_temp_c, CO2_ppm, CH4_ppm, N2O_ppm)
-#
-## Combine the separate data frames
-dat_full <- bind_rows(subset_dat1, subset_dat2, subset_dat3) 
-str(dat_full) #534 obs of 8 vars
-#
-#
-#set wd
-setwd("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling")
-#
-#
-# Save as CSV
-write.csv(dat_full, "LP3_GHG_data_raw.csv", row.names = FALSE)
-#
-#reset wd
-setwd("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Figures")
-#
+##################################################################################################################
+##### Concentrations ####
 #
 #### Use the excel sheet from Mike to calculate the dissolved gas concentration and read in that back in here ####
 #
 conc1 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_EastAnglia_Dec2024.xlsx", sheet="output")
 #
-conc2 <- read_xlsx("", sheet="output")
+conc2 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_Wrights_Dec24_Jan25.xlsx", sheet="output")
 #
-conc3 <- read_xlsx("", sheet="output")
+conc3 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_EastAnglia_Feb2025.xlsx", sheet="output")
+#
+conc4 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_Somerset_Feb25_Mar25_Apr25_May25_Jun25.xlsx", sheet="output")
+#
+#
+# Combine data setd
+conc_full <- bind_rows(conc1, conc2, conc3, conc4) 
+str(conc_full)  #152 obs of 5 columns
+conc_full <- conc_full %>% select(1:5)
+head(conc_full)
+#
+# Add a column for site and ditch #site = str_extract(sample_code, "(?<=-).*(?=-)"),
+conc_full <- conc_full %>%
+  mutate( site = str_extract(sample_code, "(?<=^[A-Z]-)[^-\\d]+(?:-[^-\\d]+)*"),
+          site = if_else(str_detect(site, "RG-R"),paste0(site, str_extract(sample_code, "(?<=RG-R)\\d+")),site),
+          ditch = str_extract(sample_code, "\\d+(\\.\\d+)?$") %>% as.numeric()  )
+#
+#
+conc_full <- conc_full %>%
+  mutate(  date = as.POSIXct(date, format="%Y/%m/%d", tz = "GMT"),
+    month = lubridate::month(date, label = TRUE, abbr = TRUE))
+#
+#
+# Add note if it's a business as usual (BAU) or high water table (HWT)
+conc_full <- conc_full %>%
+  mutate(
+    treatment = case_when(
+      site == "LC" ~ "BAU",
+      site == "SW" ~ "BAU",
+      site == "SS-A" ~ "HWT",
+      site == "SS-B" ~ "BAU",
+      site == "RG-R6" ~ "HWT",
+      site == "RG-R8" ~ "BAU",
+      site == "WF-A" ~ "HWT",
+      site == "WF-B" ~ "BAU",
+      site == "TP-A" ~ "HWT",
+      site == "TP-B" ~ "BAU",
+      site == "GC-A" ~ "HWT",
+      site == "GC-B" ~ "BAU",
+      site == "LAN" ~ "BAU",
+      site == "CHE" ~ "HWT",
+      TRUE ~ NA_character_   )  )
+#######################################################
+#
+# Read in GHG flux data (from Mike's excel file calculations)
+flux_dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Copy of Fluxes from concs_TS.xlsx", sheet="output")
+head(flux_dat)  #152 of 5 vars
+#
+# Make column for site and ditch
+flux_dat <- flux_dat %>%
+  mutate( site = str_extract(sample_code, "(?<=^[A-Z]-)[^-\\d]+(?:-[^-\\d]+)*"),
+          site = if_else(str_detect(site, "RG-R"),paste0(site, str_extract(sample_code, "(?<=RG-R)\\d+")),site),
+          ditch = str_extract(sample_code, "\\d+(\\.\\d+)?$") %>% as.numeric()  )
+#
+# Set date format
+flux_dat <- flux_dat %>%
+  mutate(  date = as.POSIXct(date, format="%Y-%m-%d", tz = "GMT"),
+           month = lubridate::month(date, label = TRUE, abbr = TRUE))
+#
+# Load in the ditch DOC data
+doc <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/DOC data/LP3_ditch_DOC_all.csv")
+head(doc)  # 231 obs of 22 vars
+#
+# Set date format
+doc <- doc %>%
+  mutate(  date = as.POSIXct(date, format="%Y-%m-%d", tz = "GMT"))
+#
+#
+#
+# Combine concentration, flux data
+dat <- conc_full %>%
+  left_join(flux_dat, by = c("sample_code", "site", "ditch", "date", "month"))
+#
+# Now add the DOC data
+#
+# rename ditch to ditch_rep and make a new column for ditch which excludes the replicate
+names(dat)[names(dat) == "ditch"] <- "ditch_rep"
+dat$ditch <- as.numeric(sub("\\..*", "", dat$ditch_rep))
+# likewise for doc
+names(doc)[names(doc) == "ditch"] <- "ditch_rep"
+doc$ditch <- as.numeric(sub("\\..*", "", doc$ditch_rep))
+#
+# Reorder columns
+dat <- dat %>%
+  select(sample_code, date, month, site, treatment, ditch_rep, ditch, everything())
+#
+#
+# Reformat to aid in join 
+doc$site <- as.factor(doc$site)
+dat$site <- as.factor(dat$site)
+#
+dat$month <- factor(dat$month, levels = c("Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"), ordered = TRUE)
+doc$month <- factor(doc$month, levels = c("Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"), ordered = TRUE)
+#
+#
+# Subset only unique rows of DOC
+doc_unique <- doc %>%
+  distinct(site, date, ditch, .keep_all = TRUE)
+#
+# Merge
+dat <- dat %>%
+  left_join(doc_unique %>% select(site, ditch,  date, DOC_mg_l), 
+            by = c("site", "date", "ditch"))   # just keep in mind that there is one DOC value for the ditch, and two GHG points, probably later on you'll want to get the average GHG of each ditch and comapare that to DOC, otherwise you are artificially inflating your sample size I think...
+#
+str(dat) #152 obs. of  14 variables
+#
+#
 
-#subset useful columns from dat 
-
-dat_sub <- dat %>%
-  select(sample_code, date, time, water_temp_c, site, ditch) %>%
-  filter(!grepl("Std|Dummy|unknown|AMB", sample_code, ignore.case = TRUE))  %>%  # remove standards and ambient
-  distinct()  #delete duplicate rows
- 
-
-dat_c <- dat_discons %>%
-  full_join(dat_sub, by = "sample_code") 
-
-
-
-#### plots ####
-
+# Save as CSV
+write.csv(conc_full, "C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/LP3_GHG_concentrations.csv")
+#
+#
+# Save as CSV
+write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/LP3_GHG_conc_flux_DOC.csv")
+#
+#
+#### Plots the data for quality control ####
+#
 #reorder sites for plotting
-dat_c$site <- as.factor(dat_c$site)
-dat_c$site <- factor(dat_c$site, levels = c("RG-R6", "RG-R8", "SS-A", "SS-B", "TP-A" , "TP-B", "LC", "SW" ))
-
-
-#CO2
-
-tiff("LP3_CO2_mg_l_plot.tiff", units="in", width=6.5, height=4, res=300)
-
-CO2plot <- ggplot(dat_c, aes(x = site, y = CO2_mg_l)) + 
+dat$site <- as.factor(dat$site)
+dat$month <- as.factor(dat$month)
+dat$treatment <- as.factor(dat$treatment)
+dat$site <- factor(dat$site, levels = c("CHE", "LAN", "WF-A", "WF-B" , "RG-R6", "RG-R8", "SS-A", "SS-B", "TP-A" , "TP-B", "GC-A", "GC-B", "LC", "SW" )) 
+#
+#
+#### CO2 ####
+#
+#tiff("LP3_CO2_mg_l_plot.tiff", units="in", width=6.5, height=4, res=300)
+CO2plot <- ggplot(subset(dat, month =="Feb"), aes(x = site, y = CO2_mg_l )) + #change month
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(aes(colour=as.factor(ditch)), alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
-  labs( y = expression(CO[2] ~ "mg/l"),  x = NULL, colour = "Ditch #") +
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+  labs( y = expression(CO[2] ~ "mg/l"),  x = NULL, colour = "Ditch #", shape = "Month") +
   theme_minimal() + # Clean theme
-  theme( axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   )
+  theme( axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) 
 CO2plot
+#dev.off()
 
-#outliers:
-#Note the 1095 ppm value is from D-RG-R8-3.2. The 16504 ppm value is D-RG-R8-4.2. These could be outliers?
+## Potential outliers ##
+#Note we took replicate measurements, when one of these is far from the other--towards atmospheric concentrations, it indicates user error and the value can be dropped
 
-dev.off()
+# In December:
+# D-RG-R8-3.2 is very low (4.806691) and  for from 3.1
+# D-RG-R8-4.2. is also low and far from 4.1 
 
-#CH4
-tiff("LP3_CH4_mg_l_plot.tiff", units="in", width=6.5, height=4, res=300)
+# In January : all WFA OK
 
-CH4plot <- ggplot(dat_c, aes(x = site, y = CH4_ug_l)) + 
+# In February: all OK 
+
+
+#### CH4 ####
+#tiff("LP3_CH4_mg_l_plot.tiff", units="in", width=6.5, height=4, res=300)
+
+CH4plot <- ggplot(subset(dat, month =="Feb"), aes(x = site, y = CH4_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(aes(colour=as.factor(ditch)), alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) +  # Jitter points to show individual observations
   #scale_y_log10() + #doesn't work with negative values
   scale_y_continuous(trans = 'pseudo_log') +
-  labs(y = expression(CH[4] ~ "ug/l"), x = NULL, colour = "Ditch #") +
+  labs(y = expression(CH[4] ~ "ug/l"), x = NULL, colour = "Ditch #", shape = "Month") +
   theme_minimal() + # Clean theme
-  theme( axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") )
+  theme( axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ) 
 CH4plot
+#dev.off()
 
-dev.off()
+# In December: 
+#D-RG-R8-3.2 
+#D-RG-R8-4.2
+# In January: all WFA OK
+# In February: all OK
 
-#Note: the ~2ppm values are D-RG-R8-3.2 and D-RG-R8-4.2
 
-#N2O
-tiff("LP3_N2O_ug_l_plot.tiff", units="in", width=6.5, height=4, res=300)
+#### N2O ####
 
-N2Oplot <- ggplot(dat_c, aes(x = site, y = N2O_ug_l)) + 
+#tiff("LP3_N2O_ug_l_plot.tiff", units="in", width=6.5, height=4, res=300)
+
+N2Oplot <- ggplot(subset(dat, month=="Feb"), aes(x = site, y = N2O_ug_l)) + 
   geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
-  geom_jitter(aes(colour=as.factor(ditch)), alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   scale_y_log10() + 
-  labs(y = expression(N[2]*O~ "ug/l"),   x = NULL, colour = "Ditch #") +
+  labs(y = expression(N[2]*O ~ " (µg" ~ L^{-1} ~ ")"),  x = NULL, colour = "Ditch #", shape ="Month") +
   theme_minimal() + # Clean theme
-  theme( axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   )
+  theme( axis.text.x = element_text(angle = 45, hjust = 1) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) 
 N2Oplot
+#dev.off()
+
+# In December:
+#D-RG-R8-3.2 is outlying
+# In January: All OK
+# In February : All OK
+
+########################## data QAQC ######################################
+# Remove outlying values
+#
+# CO2 December  D-RG-R8-3.2 , D-RG-R8-4.2
+# CH4 December #D-RG-R8-3.2 , D-RG-R8-4.2
+# N2O December D-RG-R8-3.2 
+#
+dat <- dat %>%
+  mutate(    CO2_mg_l = case_when(
+      sample_code %in% c("D-RG-R8-3.2", "D-RG-R8-4.2") ~ NA_real_,
+      TRUE ~ CO2_mg_l),
+            CO2_mg_m2_d = case_when(
+      sample_code %in% c("D-RG-R8-3.2", "D-RG-R8-4.2") ~ NA_real_,
+      TRUE ~ CO2_mg_m2_d) )
+#
+dat <- dat %>%
+  mutate(
+    CH4_ug_l = case_when(
+      sample_code %in% c("D-RG-R8-3.2", "D-RG-R8-4.2") ~ NA_real_,
+      TRUE ~ CH4_ug_l),
+    CH4_mg_m2_d = case_when(
+      sample_code %in% c("D-RG-R8-3.2", "D-RG-R8-4.2") ~ NA_real_,
+      TRUE ~ CH4_mg_m2_d) )
+#
+dat <- dat %>%
+  mutate(
+    N2O_ug_l = case_when(
+      sample_code %in% c("D-RG-R8-3.2") ~ NA_real_,
+      TRUE ~ N2O_ug_l),
+    N2O_mg_m2_d = case_when(
+      sample_code %in% c("D-RG-R8-3.2") ~ NA_real_,
+      TRUE ~ N2O_mg_m2_d) )
+
+#
+#
+# For reporting and plotting make a new column with CO2 in g
+dat$CO2_g_m2_d <- dat$CO2_mg_m2_d/1000
+#
+#
+#
+#
+##############################################################################
+#### Summary stats ####
+#
+mean(dat$CO2_g_m2_d, na.rm=T)
+sd(dat$CO2_g_m2_d, na.rm=T)
+min(dat$CO2_g_m2_d, na.rm=T)
+max(dat$CO2_g_m2_d, na.rm=T)
+sum(!is.na(dat$CO2_g_m2_d))
+#
+mean(dat$CO2_mg_l, na.rm=T)
+sd(dat$CO2_mg_l, na.rm=T)
+min(dat$CO2_mg_l, na.rm=T)
+max(dat$CO2_mg_l, na.rm=T)
+sum(!is.na(dat$CO2_mg_l))
+#
+mean(dat$CH4_mg_m2_d, na.rm=T)
+sd(dat$CH4_mg_m2_d, na.rm=T)
+min(dat$CH4_mg_m2_d, na.rm=T)
+max(dat$CH4_mg_m2_d, na.rm=T)
+sum(!is.na(dat$CH4_mg_m2_d))
+#
+mean(dat$CH4_ug_l, na.rm=T)
+sd(dat$CH4_ug_l, na.rm=T)
+min(dat$CH4_ug_l, na.rm=T)
+max(dat$CH4_ug_l, na.rm=T)
+sum(!is.na(dat$CH4_ug_l))
+#
+mean(dat$N2O_mg_m2_d, na.rm=T)
+sd(dat$N2O_mg_m2_d, na.rm=T)
+min(dat$N2O_mg_m2_d, na.rm=T)
+max(dat$N2O_mg_m2_d, na.rm=T)
+sum(!is.na(dat$N2O_mg_m2_d))
+#
+mean(dat$N2O_ug_l, na.rm=T)
+sd(dat$N2O_ug_l, na.rm=T)
+min(dat$N2O_ug_l, na.rm=T)
+max(dat$N2O_ug_l, na.rm=T)
+sum(!is.na(dat$N2O_ug_l))
+##
+##
+######
+# Summary stats by site
+summary_stats_ghg <- dat %>%
+  group_by(site) %>%
+  summarise(
+    CO2_g_m2_d_mean = mean(CO2_g_m2_d, na.rm = TRUE),
+    CO2_sd = sd(CO2_g_m2_d, na.rm = TRUE),
+    CH4_mg_m2_d_mean = mean(CH4_mg_m2_d, na.rm = TRUE),
+    CH4_sd = sd(CH4_mg_m2_d, na.rm = TRUE),
+    N2O_mg_m2_d_mean = mean(N2O_mg_m2_d, na.rm = TRUE),
+    N2O_sd = sd(N2O_mg_m2_d, na.rm = TRUE)   )
+#
+write.csv(summary_stats_ghg, "C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/LP3_ghgflux_summary_stats.csv")
+#
+#
+summary_stats_conc <- dat %>%
+  group_by(site) %>%
+  summarise(
+    DOC_mg_l_mean = mean(DOC_mg_l, na.rm = TRUE),
+    DOC_sd = sd(DOC_mg_l, na.rm = TRUE),
+    CO2_mg_l_mean = mean(CO2_mg_l, na.rm = TRUE),
+    CO2_sd = sd(CO2_g_m2_d, na.rm = TRUE),
+    CH4_ug_l_mean = mean(CH4_ug_l, na.rm = TRUE),
+    CH4_sd = sd(CH4_mg_m2_d, na.rm = TRUE),
+    N2O_ug_l_mean = mean(N2O_ug_l, na.rm = TRUE),
+    N2O_sd = sd(N2O_mg_m2_d, na.rm = TRUE)   )
+#
+write.csv(summary_stats_conc, "C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/LP3_GHGconc_summary_stats.csv")
+#
+#
+###
+#### test for differences between sites (ghg conc and fluxes) ####
+#
+#
+# 1. Test for normality using shapiro wilks test. If the p-value is less than 0.05, you reject the null hypothesis, suggesting the data is not normally distributed.
+shapiro_results1 <- sapply(dat[, c(4:6)], shapiro.test) # the majority are non-normal, so go with non-parametric tests
+shapiro_results2 <- sapply(dat[, c(14:16)], shapiro.test) # the majority are non-normal, so go with non-parametric tests
+#
+#
+#
+# 2. Use Kruskal-Wallis test to see differences between sites. If p<0.05 there is a significant difference between groups
+#
+#kruskal_results <- sapply(dat[, c(4:11, 13:18, 22:25, 27)], function(x) kruskal.test(x ~ dat$site))
+#
+kruskal_results_conc <- dat %>%  # for concentration data
+  select(c(4:6)) %>%
+  map(~ kruskal.test(.x ~ dat$site))
+#
+kruskal_p_values_conc <- kruskal_results_conc %>%
+  map_dbl(~ .x$p.value)   # all significant
+#
+#
+kruskal_results_flux <- dat %>%    # for flux data
+  select(c(14:16)) %>%
+  map(~ kruskal.test(.x ~ dat$site))
+#
+kruskal_p_values_flux <- kruskal_results_flux %>%
+  map_dbl(~ .x$p.value)   # all significant
+#
+#
+#
+# 3. Run pairwise Wilcoxon rank sum test
+#
+# Identify significant variables
+significant_vars_conc <- names(kruskal_p_values_conc)[kruskal_p_values_conc < 0.05]
+significant_vars_flux <- names(kruskal_p_values_flux)[kruskal_p_values_flux < 0.05]
+
+# Run pairwise Wilcoxon tests on significant variables
+pairwise_results_conc <- dat %>%
+  select(all_of(significant_vars_conc)) %>%
+  map(~ pairwise.wilcox.test(.x, dat$site, p.adjust.method = "bonferroni", exact = FALSE))
+#
+pairwise_results_flux <- dat %>%
+  select(all_of(significant_vars_flux)) %>%
+  map(~ pairwise.wilcox.test(.x, dat$site, p.adjust.method = "bonferroni", exact = FALSE))
+#
+# print each result by changing the element name within the brackets
+pairwise_results_conc[["CO2_mg_l"]] # SS-A and SS-B p = 0.02; TP-A and TB-B p =0.01
+pairwise_results_conc[["CH4_ug_l"]] # TP-A and TB-B p =0.02
+pairwise_results_conc[["N2O_ug_l"]] # WFA and WFB p=0.0007 ; TP-A and TB-B p =0.01 
+#
+pairwise_results_flux[["CO2_mg_m2_d"]] # SS-A and SS-B p = 0.03; TP-A and TB-B p =0.01
+pairwise_results_flux[["CH4_mg_m2_d"]] # TP-A and TB-B p =0.01
+pairwise_results_flux[["N2O_mg_m2_d"]]  # WFA and WFB p=0.009 ; TP-A and TB-B p =0.01 
+#
+#
+#
+##### Relationship between DOC and GHG #####################################
+#
+# Plot
+#
+DOC_CO2 <- ggplot(dat, aes(x = DOC_mg_l, y = CO2_g_m2_d)) +
+  geom_point(fill = "#6497bf", alpha = 0.6, size=3, shape=21) +  
+  #geom_smooth(method = "loess", se = F, color = "#e57e73") +
+  #geom_smooth(method = "lm", se = F, color = "#e57e73") +  # Linear regression line
+  labs(x = expression(DOC ~ "(mg L"^-1*")"),  y = expression(CO[2] ~ "(mg L"^-1*")"))  +
+  theme_minimal()  +
+  stat_cor(method="spearman", label.sep = "\n", label.x = 50, label.y = 45) +
+  theme(axis.title = element_text(size = 14), axis.text.y = element_text(size=12), axis.text.x = element_text(size=12),  panel.grid = element_blank(), panel.border = element_rect(color = "black", fill = NA, linewidth = 1), axis.ticks = element_line(color = "black")  )
+DOC_CO2
+
+DOC_CH4 <- ggplot(dat, aes(x = DOC_mg_l, y = CH4_mg_m2_d)) +
+  geom_point(fill = "#6497bf", alpha = 0.6, size=3, shape=21) +  
+  #geom_smooth(method = "loess", se = F, color = "#e57e73") +
+  labs(x = expression(DOC ~ "(mg L"^-1*")"),  y = expression(CH[4] ~ "(µg L"^-1*")") )  +
+  theme_minimal()  +
+  stat_cor(method="spearman", label.sep = "\n", label.x = 7.2, label.y = 400) +
+  theme(axis.title = element_text(size = 14), axis.text.y = element_text(size=12), axis.text.x = element_text(size=12),  panel.grid = element_blank(), panel.border = element_rect(color = "black", fill = NA, linewidth = 1), axis.ticks = element_line(color = "black")  )
+DOC_CH4
+
+DOC_N2O <- ggplot(dat, aes(x = DOC_mg_l, y = N2O_mg_m2_d)) +
+  geom_point(fill = "#6497bf", alpha = 0.6, size=3, shape=21) +  
+  #geom_smooth(method = "loess", se = F, color = "#e57e73") +
+  labs(x = expression(DOC ~ "(mg L"^-1*")"),  y = expression(N[2]*O ~ " (µg" ~ L^{-1} ~ ")") )  +
+  theme_minimal()  +
+  stat_cor(method="spearman", label.sep = "\n", label.x = 50, label.y =240) +
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), axis.title = element_text(size = 14), axis.text.y = element_text(size=12), axis.text.x = element_text(size=12),  panel.grid = element_blank(),  axis.ticks = element_line(color = "black")  )
+DOC_N2O
+
+## combine ##
+
+
+jpeg("LP3_ditch_DOC_GHGs.jpg", units="in", width=9, height=3, res=300)
+
+DOC_GHG <- ggarrange(DOC_CO2,DOC_CH4, DOC_N2O,
+                          labels = c("A", "B", "C"),
+                          ncol = 3, nrow = 1, align="v" )
+DOC_GHG
 
 dev.off()
 
-#Note: 0.57 ppm value is D-RG-R8-3.2
+################################################################################
+#### PLOTS FOR REPORTING ####
+#
+#
+# Make a new column for month (month2) for plotting in early stages
+dat <- dat %>%
+  mutate(month2 = case_when(
+    month %in% c("Jan", "Feb") ~ "Jan/Feb",
+    month == "Dec" ~ "Dec",
+    TRUE ~ month  ))
+#
+#
+#
+##
+###
+#### CO2 ####
+tiff("LP3_CO2_mg_l_plot_all.tiff", units="in", width=6.5, height=4, res=300)
+
+CO2_conc <- ggplot(dat, aes(x = site, y = CO2_mg_l)) + # Use fill for land use categories
+  geom_boxplot(aes(fill = treatment), outlier.shape = NA) + 
+  geom_jitter(aes(fill = treatment), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  labs(y = expression(CO[2] ~ "(mg L"^-1*")"),  x = NULL,   fill = " " ) +
+  theme_minimal() + # Clean theme
+  theme( axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("#e57e73", "#6497bf")) +
+  geom_bracket(xmin = c(5, 7), xmax = c(6, 8),
+               y.position = c(150, 150),
+               label = c(" ", " "),
+               tip.length = 0.01, label.size = 4) +
+  annotate("text", x =5.5, y = 151 , label = "*", size=5) +
+  annotate("text", x =7.5, y = 151 , label = "*", size=5) 
+CO2_conc
+
+dev.off()
 
 
-#### Calculate GHG fluxes ####
+CO2_flux <- ggplot(dat, aes(x = site, y = CO2_g_m2_d)) + # Use fill for land use categories
+  geom_boxplot(aes(fill = treatment), outlier.shape = NA) + 
+  geom_jitter(aes(fill = treatment), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  labs(y = expression(g~CO[2]*~m^-2*~d^-1), x = NULL, fill = " " ) +
+  theme_minimal() + # Clean theme
+  theme( axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("#e57e73", "#6497bf")) +
+  geom_bracket(xmin = c(5, 7), xmax = c(6, 8),
+              y.position = c(35, 35),
+               label = c(" ", " "),
+               tip.length = 0.01, label.size = 4) +
+  annotate("text", x =5.5, y = 35.5 , label = "*", size=5) +
+  annotate("text", x =7.5, y = 35.5 , label = "*", size=5) 
+CO2_flux
 
-#Step 1: Calculate aquatic gas concentration (Caq)
+CO2_conc_monthly <- ggplot(dat, aes(x = site, y = CO2_mg_l )) + 
+  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values = c("Dec" = 16, "Feb" = 17, "Jan" = 15, "Mar" = 18)) +
+  labs( y = expression(CO[2] ~ "(mg L"^-1*")"),   x = NULL, colour = "Ditch #", shape = "Month") +
+  theme_minimal() + # Clean theme
+  theme(axis.title = element_text(size = 12), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ,  panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank() , panel.grid.minor = element_blank() ) +
+  facet_wrap(~month2)
+CO2_conc_monthly
 
-# Caq =  headspace gas concentration in ppm (Chs) * solubility of gas in water mol/L/atm (KH) * atmospheric pressure at sampling site (Patm) + (Chs - gas concentration in the atmosphere (Cair) ) * Patm * volume of air in headspace (Va) / ( volume of water in headspace (Vw) * universal gas constant (R) * in situ water temperature)
+CO2_flux_monthly <- ggplot(dat, aes(x = site, y = CO2_g_m2_d )) + 
+  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values = c("Dec" = 16, "Feb" = 17, "Jan" = 15, "Mar" = 18)) +
+  labs( y = expression(g~CO[2]*~m^-2*~d^-1),  x = NULL, colour = "Ditch #", shape = "Month") +
+  theme_minimal() + # Clean theme
+  theme(axis.title = element_text(size = 12), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ,  panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank() , panel.grid.minor = element_blank() ) +
+  facet_wrap(~month2)
+CO2_flux_monthly
 
 
-#solubility coefficient of CO2 (Weiss, 1974; Table 2) and CH4 (Yamamoto et al., 1976)
-mean(dat$water_temp_c, na.rm=T) #8.18
-#solubility of CO2 at 8.18C is 0.05751 mol/L/atm
-#solubility of CH4 at 8.18C is 0.04579 ml/ml -  convert to mol/L/atm??
+#### CH4 ####
+
+tiff("LP3_CH4_mg_l_plot_all.tiff", units="in", width=6.5, height=4, res=300)
+
+CH4_conc <- ggplot(dat, aes(x = site, y = CH4_ug_l)) + # Use fill for land use categories
+  geom_boxplot(aes(fill = treatment), outlier.shape = NA) + 
+  geom_jitter(aes(fill = treatment), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  labs( y = expression(CH[4] ~ "(µg L"^-1*")"),   x = NULL,   fill = " " ) +
+  theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0.1, 1, 10, 100, 1000), labels = scales::number) +
+  theme(  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("#e57e73", "#6497bf")) +
+  geom_bracket(xmin = c( 7), xmax = c( 8),
+               y.position = c(1),
+               label = c(" "),
+               tip.length = 0.01, label.size = 4) +
+  annotate("text", x =7.5, y = 2.5 , label = "*", size=5) 
+CH4_conc
+
+dev.off()
+
+
+CH4_flux <- ggplot(dat, aes(x = site, y = CH4_mg_m2_d)) + # Use fill for land use categories
+  geom_boxplot(aes(fill = treatment), outlier.shape = NA) + 
+  geom_jitter(aes(fill = treatment), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  labs( y = expression(~mg~CH[4]*~m^-2~d^-1),   x = NULL,   fill = " " ) +
+  theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0.1, 1, 10, 100, 1000), labels = scales::number) +
+  theme(  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("#e57e73", "#6497bf")) +
+  geom_bracket(xmin = c( 7), xmax = c( 8),
+               y.position = c(1),
+               label = c(" "),
+               tip.length = 0.01, label.size = 4) +
+  annotate("text", x =7.5, y = 2.5 , label = "*", size=5) 
+CH4_flux
+
+
+
+CH4_conc_monthly <- ggplot(dat, aes(x = site, y = CH4_ug_l )) + 
+  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values = c("Dec" = 16, "Feb" = 17, "Jan" = 15, "Mar" = 18)) +
+  labs( y = expression(CH[4] ~ "(µg L"^-1*")"),  x = NULL, colour = "Ditch #", shape = "Month") +
+  theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0.1, 1, 10, 100, 1000), labels = scales::number) +
+  theme(axis.title = element_text(size = 12), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ,  panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank() , panel.grid.minor = element_blank() ) +
+  facet_wrap(~month2)
+CH4_conc_monthly
+
+CH4_flux_monthly <- ggplot(dat, aes(x = site, y = CH4_mg_m2_d )) + 
+  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values = c("Dec" = 16, "Feb" = 17, "Jan" = 15, "Mar" = 18)) +
+  labs(  y = expression(~mg~CH[4]*~m^-2~d^-1),  x = NULL, colour = "Ditch #", shape = "Month") +
+  theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0.1, 1, 10, 100, 1000), labels = scales::number) +
+  theme(axis.title = element_text(size = 12), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ,  panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank() , panel.grid.minor = element_blank() ) +
+  facet_wrap(~month2)
+CH4_flux_monthly
+
+#### N2O ####
+
+
+tiff("LP3_N2O_mg_l_plot_all.tiff", units="in", width=6.5, height=4, res=300)
+
+N2O_conc <- ggplot(dat, aes(x = site, y = N2O_ug_l)) + # Use fill for land use categories
+  geom_boxplot(aes(fill = treatment), outlier.shape = NA) + 
+  geom_jitter(aes(fill = treatment), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  labs(y = expression(N[2]*O ~ " (µg" ~ L^{-1} ~ ")"),   x = NULL,   fill = " " ) +
+  theme_minimal() + # Clean theme
+  scale_y_log10(labels = scales::label_number(accuracy = 1)) + 
+  theme(  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("#e57e73", "#6497bf")) +
+  geom_bracket(xmin = c(1, 7), xmax = c(2, 8),
+               y.position = c(2, 3.1),
+              label = c(" ", " "),
+             tip.length = 0.01, label.size = 4) +
+  annotate("text", x =1.5, y = 101 , label = "**", size=5) +
+  annotate("text", x =7.5, y = 1280 , label = "*", size=5) 
+N2O_conc
+
+dev.off()
+
+
+
+N2O_flux <- ggplot(dat, aes(x = site, y = N2O_mg_m2_d)) + # Use fill for land use categories
+  geom_boxplot(aes(fill = treatment), outlier.shape = NA) + 
+  geom_jitter(aes(fill = treatment), colour="black", alpha=0.5, size = 3, width = 0.2, shape=21) + 
+  labs(y = expression(mg~N[2]*`O`*~m^-2~d^-1),   x = NULL,   fill = " " ) +
+  theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100), labels = scales::number) +
+ # scale_y_log10(labels = scales::label_number(accuracy = 1),  breaks = c(0, 1, 10, 100, 1000)) + 
+  theme(  axis.title = element_text(size = 14), axis.text.y = element_text(size=12),  axis.text.x = element_text(angle = 45, hjust = 1, size=12),  panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("#e57e73", "#6497bf")) +
+  geom_bracket(xmin = c(1, 7), xmax = c(2, 8),
+               y.position = c(5, 6),
+               label = c(" ", " "),
+               tip.length = 0.01, label.size = 4) +
+  annotate("text", x =1.5, y = 150 , label = "**", size=5) +
+  annotate("text", x =7.5, y = 405 , label = "*", size=5) 
+N2O_flux
+
+
+N2O_conc_monthly <- ggplot(dat, aes(x = site, y = N2O_ug_l )) + 
+  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) +
+  scale_shape_manual(values = c("Dec" = 16, "Feb" = 17, "Jan" = 15, "Mar" = 18)) +
+  labs( y = expression(N[2]*O ~ " (µg" ~ L^{-1} ~ ")"), x = NULL, colour = "Ditch #", shape = "Month") +
+  theme_minimal() + # Clean theme
+  scale_y_log10(labels = scales::label_number(accuracy = 1)) + 
+  theme(axis.title = element_text(size = 12), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ,  panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank() , panel.grid.minor = element_blank() ) +
+  facet_wrap(~month2)
+N2O_conc_monthly
+
+N2O_flux_monthly <- ggplot(dat, aes(x = site, y = N2O_mg_m2_d )) + 
+  geom_boxplot(outlier.shape = NA) + # Add boxplot without showing outliers
+  geom_jitter(aes(colour=as.factor(ditch), shape = as.factor(month)), alpha=0.5, size = 3, width = 0.2) + 
+  scale_shape_manual(values = c("Dec" = 16, "Feb" = 17, "Jan" = 15, "Mar" = 18)) +
+  labs( y = expression(mg~N[2]*`O`*~m^-2~d^-1), x = NULL, colour = "Ditch #", shape = "Month") +
+  theme_minimal() + # Clean theme
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100), labels = scales::number) +
+  theme(axis.title = element_text(size = 12), axis.text.y = element_text(size=12), axis.text.x = element_text(angle = 45, hjust = 1, size=12) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black") ,  panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank() , panel.grid.minor = element_blank() ) +
+  facet_wrap(~month2)
+N2O_flux_monthly
+
+
+#### COMBINE ####
+#Combine concentration and flux plots
+
+jpeg("LP3_ditch_GHG_conc_monthly.jpg", units="in", width=10, height=12, res=300)
+
+monthly_conc <- ggarrange(CO2_conc_monthly, CH4_conc_monthly, N2O_conc_monthly,
+                       labels = c("A", "B", "C"),
+                       ncol = 1, nrow = 3, align="v", common.legend = TRUE, legend = "top" )
+monthly_conc
+
+dev.off()
+#
+#
+#
+jpeg("LP3_ditch_GHG_flux_monthly.jpg", units="in", width=10, height=12, res=300)
+
+monthly_flux <- ggarrange(CO2_flux_monthly, CH4_flux_monthly, N2O_flux_monthly,
+                          labels = c("A", "B", "C"),
+                          ncol = 1, nrow = 3, align="v", common.legend = TRUE, legend = "top" )
+monthly_flux
+
+dev.off()
+#
+#
+#
+jpeg("LP3_ditch_GHG_conc_flux_combined.jpg", units="in", width=10, height=12, res=300)
+
+Conc_flux <- ggarrange(CO2_conc, CO2_flux, CH4_conc, CH4_flux, N2O_conc, N2O_flux,
+                              labels = c("A", "B", "C", "D", "E", "F"),
+                              ncol = 2, nrow = 3, align="v", common.legend = TRUE, legend = "top" )
+Conc_flux
+
+dev.off()
+
+################################################################################
+# BACI plot for EGU 2025 presentation
+dat <- dat %>%
+  mutate(BACI = "before")
+
+dat$month <- factor(dat$month, levels = c("Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"))
+
+
+jpeg("LP3_CO2_conc_BACI.jpg", units="in", width=6, height=4, res=300)
+
+CO2_BACI <- ggplot(dat, aes(x = month, y = CO2_mg_l, colour = treatment)) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1, position = position_dodge(width = 0.2)) +  
+  stat_summary(aes(group=treatment), fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +
+  scale_colour_manual(values = c("#e57e73", "#6497bf")) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    
+  labs(y = expression(CO[2] ~ "(mg L"^-1*")"),  x = NULL,   fill = " " ) + 
+  scale_x_discrete(drop = FALSE) + 
+  theme_minimal() +  theme(legend.position = "top", legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank(), panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.8))  +
+  annotate("rect", xmin = 4.25, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = "lightgrey", alpha = 0.5) +
+  coord_cartesian(ylim = c(0, 200)) +
+  annotate("text", x = 5, y = 0, label = "after", size = 5) +
+  annotate("text", x = 1.5, y = 0, label = "before", size = 5) 
+CO2_BACI
+
+dev.off()
+
+
+
+
+jpeg("LP3_CH4_conc_BACI.jpg", units="in", width=6, height=4, res=300)
+
+CH4_BACI <- ggplot(dat, aes(x = month, y = CH4_ug_l, colour = treatment)) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1, position = position_dodge(width = 0.2)) +  
+  stat_summary(aes(group=treatment), fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +
+  scale_colour_manual(values = c("#e57e73", "#6497bf")) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    
+  labs(y = expression(CH[4] ~ "(µg L"^-1*")"),  x = NULL,   fill = " " ) + 
+  scale_x_discrete(drop = FALSE) + 
+  theme_minimal() +  theme(legend.position = "top", legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank(), panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.8))  +
+  annotate("rect", xmin = 4.25, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = "lightgrey", alpha = 0.5) +
+  coord_cartesian(ylim = c(0, 2000)) +
+  annotate("text", x = 5, y = 2000, label = "after", size = 5) +
+  annotate("text", x = 1.5, y = 2000, label = "before", size = 5) 
+CH4_BACI
+
+dev.off()
+
+
+
+
+
+jpeg("LP3_N2O_conc_BACI.jpg", units="in", width=6, height=4, res=300)
+
+N2O_BACI <- ggplot(dat, aes(x = month, y = N2O_ug_l, colour = treatment)) +
+  stat_summary(fun = mean, geom = "point", size = 3.5, alpha = 0.7, position = position_dodge(width = 0.2)) +  
+  stat_summary(fun.data = function(y) mean_se(y),  geom = "errorbar", linewidth = 0.6, alpha = 0.7, width=1, position = position_dodge(width = 0.2)) +  
+  stat_summary(aes(group=treatment), fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +
+  scale_colour_manual(values = c("#e57e73", "#6497bf")) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1, alpha = 0.7) +    
+  labs(y = expression(N[2]*O ~ "(µg L"^-1*")"),  x = NULL,   fill = " " ) + 
+  scale_x_discrete(drop = FALSE) + 
+  theme_minimal() +  theme(legend.position = "top", legend.text = element_text(size = 12), panel.grid = element_blank(), axis.line = element_line(), axis.ticks = element_line(), axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), legend.title = element_blank(), axis.title = element_text(size = 14),  axis.title.x = element_blank(), panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.8))  +
+  annotate("rect", xmin = 4.25, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = "lightgrey", alpha = 0.5) +
+  coord_cartesian(ylim = c(0, 500)) +
+  annotate("text", x = 5, y = 500, label = "after", size = 5) +
+  annotate("text", x = 1.5, y = 500, label = "before", size = 5) 
+N2O_BACI
+
+dev.off()
 

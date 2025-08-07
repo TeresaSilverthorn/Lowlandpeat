@@ -16,13 +16,13 @@ library(tidyr)
 library(lubridate)
 library(purrr)
 #
-#Read in the GHG concentration data
+#Read in the GHG Edinburgh concentration data
 #
-dat1 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/LOWLAND_December_16_12_2024.XLS", range="A5:I213") # December 2024 East Anglia sites
+dat1 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Edinburgh GC data/LOWLAND_December_16_12_2024.XLS", range="A5:I213") # December 2024 East Anglia sites
 #
-dat2 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/LOWLAND_January_2025.XLS", range="A5:I126")   # December 2024 and January 2025 Wrights Farm 
+dat2 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Edinburgh GC data/LOWLAND_January_2025.XLS", range="A5:I126")   # December 2024 and January 2025 Wrights Farm 
 #
-dat3 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/LOWLAND_13_02_2025.XLS", range="A5:I222")   # February 2025 East Anglia sites
+dat3 <- readxl::read_xls("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Edinburgh GC data/LOWLAND_13_02_2025.XLS", range="A5:I222")   # February 2025 East Anglia sites
 #
 ##
 # Drop rows with NAs or repeated headings
@@ -65,10 +65,10 @@ dat3 <- dat3 %>%
 #
 ## Read in the ancillary data
 #
-ancil_dat <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Ancil_dat/ditch_ancillary_data_2025-03-18.csv")
+ancil_dat <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Ancil_dat/ditch_ancillary_data_2025-03-18.csv")
 #
 #Import the sample list to note which vials were wet
-list <- readxl::read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Edinburgh GC data/Samples list.xlsx")
+list <- readxl::read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Edinburgh GC data/Samples list.xlsx")
 #
 #
 # Combine data and ancillary data
@@ -125,21 +125,21 @@ CO2cal1 <- dat1 %>% #get the average of the standards
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 CO2cal2 <- dat2 %>% #get the average of the standards
   filter(str_detect(sample_code, "Std") & gas == "CO2") %>%
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 CO2cal3 <- dat3 %>% #get the average of the standards
   filter(str_detect(sample_code, "Stnd") & gas == "CO2") %>%
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 #
 #Standard concentrations for GHGs standards
@@ -217,21 +217,21 @@ CH4cal1 <- dat1 %>% # get the average of the standards
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 CH4cal2 <- dat2 %>% # get the average of the standards
   filter(str_detect(sample_code, "Std") & gas == "CH4") %>%
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 CH4cal3 <- dat3 %>% # get the average of the standards
   filter(str_detect(sample_code, "Stnd") & gas == "CH4") %>%
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 #Standard concentrations for GHGs standards
 #Standard ID	Concentration (ppm)	from Aurelia's email 19/12/2024
@@ -312,21 +312,21 @@ N2Ocal1 <- dat1 %>% # get the average of the standards
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 N2Ocal2 <- dat2 %>% # get the average of the standards
   filter(str_detect(sample_code, "Std") & gas == "N2O") %>%
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 N2Ocal3 <- dat3 %>% # get the average of the standards
   filter(str_detect(sample_code, "Stnd") & gas == "N2O") %>%
   mutate(sample_code = factor(sample_code), 
          Area = as.numeric(Area))  %>%
   group_by(sample_code) %>%
-  summarize(Area = mean(Area, na.rm = TRUE))
+  dplyr::summarize(Area = mean(Area, na.rm = TRUE))
 #
 #Standard concentrations for GHGs standards
 #Standard ID	Concentration (ppm)	from Aurelia's email 19/12/2024
@@ -416,7 +416,7 @@ dat_amb3 <- dat3 %>%
 #
 mean_amb_by_gas1 <- dat_amb1 %>%
   group_by(gas) %>%
-  summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
+  dplyr::summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
             mean_CH4ppm = mean(CH4_ppm, na.rm = TRUE),
             mean_N2Oppm = mean(N2O_ppm, na.rm = TRUE))
 #
@@ -431,7 +431,7 @@ print(mean_amb_by_gas1)
 #
 mean_amb_by_gas2 <- dat_amb2 %>%
   group_by(gas) %>%
-  summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
+  dplyr::summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
             mean_CH4ppm = mean(CH4_ppm, na.rm = TRUE),
             mean_N2Oppm = mean(N2O_ppm, na.rm = TRUE))
 #
@@ -444,7 +444,7 @@ print(mean_amb_by_gas2)
 #
 mean_amb_by_gas3 <- dat_amb3 %>%
   group_by(gas) %>%
-  summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
+  dplyr::summarize(mean_CO2ppm = mean(CO2_ppm, na.rm = TRUE), 
             mean_CH4ppm = mean(CH4_ppm, na.rm = TRUE),
             mean_N2Oppm = mean(N2O_ppm, na.rm = TRUE))
 #
@@ -475,75 +475,6 @@ setwd("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling")
 #
 #
 # Save as CSV
-write.csv(dat_full, "LP3_GHG_data_raw.csv", row.names = FALSE)
+write.csv(dat_full, "LP3_Edinburgh_GHG_data_raw.csv", row.names = FALSE)
 #
-#reset wd
-setwd("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Figures")
-#
-#
-#
-##################################################################################################################
-##### Concentrations ####
-#
-#### Use the excel sheet from Mike to calculate the dissolved gas concentration and read in that back in here ####
-#
-conc1 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_EastAnglia_Dec2024.xlsx", sheet="output")
-#
-conc2 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_Wrights_Dec24_Jan25.xlsx", sheet="output")
-#
-conc3 <- read_xlsx("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_EastAnglia_Feb2025.xlsx", sheet="output")
-#
-#
-# Combine data setd
-conc_full <- bind_rows(conc1, conc2, conc3) 
-str(conc_full)  #120 obs of 5 columns
-head(conc_full)
-#
-# Add a column for site
-conc_full <- conc_full %>%
-  mutate(site = str_extract(sample_code, "(?<=-).*(?=-)"),
-         ditch = str_extract(sample_code, "(?<=-)[0-9]+(?=\\.)") %>% as.numeric() )
-#
-#
-conc_full <- conc_full %>%
-  mutate(
-    date = as.POSIXct(date, tz = "Europe/London"),
-    month = month(date, label = TRUE, abbr = TRUE), 
-    month = factor(month, levels = c("Dec", "Jan", "Feb")))
-#
-#
-# Add note if it's a business as usual (BAU) or high water table (HWT)
-conc_full <- conc_full %>%
-  mutate(
-    treatment = case_when(
-      site == "LC" ~ "BAU",
-      site == "SW" ~ "BAU",
-      site == "SS-A" ~ "HWT",
-      site == "SS-B" ~ "BAU",
-      site == "RG-R6" ~ "HWT",
-      site == "RG-R8" ~ "BAU",
-      site == "WF-A" ~ "HWT",
-      site == "WF-B" ~ "BAU",
-      site == "TP-A" ~ "HWT",
-      site == "TP-B" ~ "BAU",
-      TRUE ~ NA_character_   )  )
-
-# Add ppm concetration values 
-conc_full <- conc_full %>%
-  mutate(
-    CO2_ppm = dat_full %>%
-      filter(!is.na(CO2_ppm)) %>%
-      { .$CO2_ppm[match(sample_code, .$sample_code)] },
-    
-    CH4_ppm = dat_full %>%
-      filter(!is.na(CH4_ppm)) %>%
-      { .$CH4_ppm[match(sample_code, .$sample_code)] },
-    
-    N2O_ppm = dat_full %>%
-      filter(!is.na(N2O_ppm)) %>%
-      { .$N2O_ppm[match(sample_code, .$sample_code)] }   )
-
-
-# Save as CSV
-write.csv(conc_full, "C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/LP3_GHG_concentrations.csv")
 
