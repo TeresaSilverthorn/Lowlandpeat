@@ -17,6 +17,7 @@ library(cowplot)
 library(lme4)
 library(lmerTest)
 library(emmeans)
+library(scales)
 #
 #
 #
@@ -304,7 +305,7 @@ tap_vol <- tap_vol %>%
 ##############################################
 #### plot tap water additions ####
 
-jpeg("LP3+_mesocosm_tap_water_additions.jpg", units="in", width=6.5, height=4, res=300)
+#jpeg("LP3+_mesocosm_tap_water_additions.jpg", units="in", width=6.5, height=4, res=300)
 
 tap_water <- ggplot(subset(tap_vol, !is.na(Group) ), aes(x = as.Date(date), y = tap_water_addition_L, colour =Group)) + 
   labs(y = "Tap water addition (L)") +
@@ -313,8 +314,8 @@ tap_water <- ggplot(subset(tap_vol, !is.na(Group) ), aes(x = as.Date(date), y = 
   theme_minimal() + theme( axis.title.x = element_blank(), legend.position = "top", legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +   scale_colour_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF")) +   scale_x_date(    breaks = date_breaks("1 week"), minor_breaks = date_breaks("1 day"),  date_labels = "%b %d") # can't seem to get ticks for each day
 tap_water
 
-dev.off()
-  
+#dev.off()
+
 ###
 
 
@@ -486,7 +487,7 @@ F_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4
                width = 0, alpha=0.6, color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
     labs(y = expression(F^"\u2212"*" (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -500,7 +501,7 @@ F_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(
   labs(y = expression(F^"\u2212"*" (mg L"^"-1"*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -514,7 +515,7 @@ F_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"),
   labs(y = expression(F^"\u2212"*" (mg L"^"-1"*")")) +
    # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
     theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
     scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -563,7 +564,7 @@ Cl_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "
                width = 0, alpha=0.6,  color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(Cl^"\u2212"*" (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -577,7 +578,7 @@ Cl_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   labs(y = expression(Cl^"\u2212"*" (mg L"^"-1"*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -588,7 +589,7 @@ Cl_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(Cl^"\u2212"*" (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -639,7 +640,7 @@ NO2_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"
   labs(y = expression(NO[2]^"-" ~ "(mg L"^-1*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -661,7 +662,7 @@ NO3_time <- ggplot(subset(dat, !is.na(C.W)& C.W != "BW" & C.W != "4_1"), aes(x =
   geom_boxplot(aes(fill=Group), position = position_dodge(width = 0.5),  outlier.shape = NA,   width = 0.45) + 
   geom_jitter(aes(fill=Group), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.5), size = 2, alpha = 0.6, shape=21, colour="black") +
    # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_discrete(labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_discrete(labels = c("0", "2", "3", "6", "10")) +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")")) +
   theme_minimal() +
   theme(axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
@@ -672,7 +673,7 @@ NO3_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")")) +
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") ) 
@@ -685,7 +686,7 @@ NO3_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(NO[3]^"-" * "-N" ~ "(mg L"^-1*")")) +
    # scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.position = c(.85, .65),  axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -700,7 +701,7 @@ NO3_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"
   labs(y = expression(NO[3]^"-" * "-N" ~ "(mg L"^-1*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.position = c(.76, .85), axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -711,7 +712,7 @@ NO3_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), ae
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -722,7 +723,7 @@ PO4_time <- ggplot(subset(dat, !is.na(C.W)& C.W != "BW" & C.W != "4_1"), aes(x =
   geom_boxplot(aes(fill=Group), position = position_dodge(width = 0.5),  outlier.shape = NA,   width = 0.45) + 
   geom_jitter(aes(fill=Group), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.5), size = 2, alpha = 0.6, shape=21, colour="black") +
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_discrete( labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_discrete( labels = c("0", "2", "3", "6", "10")) +
   labs(y = expression(PO[4]^"-" ~ "(mg L"^-1*")"),  x = "Week") +
   theme_minimal() +
   theme( legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
@@ -735,7 +736,7 @@ PO4_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(PO[4]^"-" ~ "(mg L"^-1*")"), x = "Week") +
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )
@@ -747,7 +748,7 @@ PO4_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(PO[4]^{"3-"}*"-P (mg L"^-1*")")) +
   # scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.position = "top", legend.box = "vertical", legend.spacing.y = unit(-0.5, "cm"),  axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -761,7 +762,7 @@ PO4_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"
   labs(y = expression(PO[4]^{"3-"}*"-P (mg L"^-1*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( legend.position = c(.25, .85),   axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -772,7 +773,7 @@ PO4_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), ae
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(PO[4]^"-" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -810,7 +811,7 @@ SO4_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(SO[4]^"2-"*"-S" ~ "("*mg~L^{-1}*")")) +
   scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -821,7 +822,7 @@ SO4_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression(SO[4]^"-" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -832,7 +833,7 @@ SO4_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), ae
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(SO[4]^"2-"*"-S" ~ "("*mg~L^{-1}*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -882,7 +883,7 @@ Na_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   labs(y = expression("Na (mg L"^"-1"*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -893,7 +894,7 @@ Na_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression("Na (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -905,7 +906,7 @@ NH4_time <- ggplot(subset(dat, !is.na(C.W)& C.W != "BW" & C.W != "4_1"), aes(x =
   geom_boxplot(aes(fill=Group), position = position_dodge(width = 0.5),  outlier.shape = NA,   width = 0.45) + 
   geom_jitter(aes(fill=Group), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.5), size = 2, alpha = 0.6, shape=21, colour="black") +
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_discrete(  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_discrete(  labels = c("0", "2", "3", "6", "10")) +
   labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")") ,  x = "Week")+
   theme_minimal() +
   #scale_y_continuous(trans = 'pseudo_log') +
@@ -919,7 +920,7 @@ NH4_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(NH[4]^"+"*"-N" ~ "(mg L"^-1*")") , x= "Week" )+
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )
@@ -932,7 +933,7 @@ NH4_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(NH[4]^"+"*"-N" ~ "(mg L"^-1*")")) +
   #scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -944,7 +945,7 @@ NH4_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression(NH[4]^"+"*"-N" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.position="none", axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -955,7 +956,7 @@ NH4_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), ae
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(NH[4]^"+" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -1004,7 +1005,7 @@ Mg_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression("Mg (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1015,7 +1016,7 @@ Mg_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression("Mg (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -1050,7 +1051,7 @@ K_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression("K (mg L"^"-1"*")")) +
   #scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -1061,7 +1062,7 @@ K_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"),
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression("K (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1072,7 +1073,7 @@ K_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression("K (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -1119,7 +1120,7 @@ Ca_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression("Ca (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1130,7 +1131,7 @@ Ca_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression("Ca (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("BL", "39", "40", "43", "47")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -1312,7 +1313,7 @@ combine2
 dev.off()
 
 ##############################################################################
-#### Statistical analysis ####
+#### STATISTICAL ANALYSIS ####
 # We are interested in the effect of time, site, and treatment
 
 lmer_NO3 <- lmer(log(NO3_N_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
@@ -1734,7 +1735,11 @@ Fe
 
 #dev.off()
 
-Fe_P <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = (Fe_ug_l/ (P_mg_l*1000) ) , fill=site)) +
+#### Fe:P ####
+
+dat$Fe_P_ratio <- (dat$Fe_ug_l / 1e6 / 55.845) / (dat$P_mg_l / 1000 / 30.974)
+
+Fe_P <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = Fe_P_ratio , fill=site)) +
   geom_boxplot(width = 0.9) + #
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Fe:P"), x = NULL, fill = "Land Use") + 
@@ -1747,7 +1752,7 @@ Fe_P
 dat %>%
   filter(Cycle.no. == "BW") %>%
   group_by(site) %>%
-  dplyr::summarize(mean_Fe_P_ratio = mean(Fe_ug_l / (P_mg_l * 1000), na.rm = TRUE))
+  dplyr::summarize(mean_Fe_P_ratio = mean(Fe_P_ratio), na.rm = TRUE)
 
 #### Manganese	####
 
