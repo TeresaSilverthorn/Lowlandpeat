@@ -18,6 +18,7 @@ library(lme4)
 library(lmerTest)
 library(emmeans)
 library(scales)
+library(patchwork)
 #
 #
 #
@@ -41,11 +42,18 @@ dat3 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Re
 head(dat3)
 #
 #
+dat4 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C118 20251124_TS.xlsx", range= "A10:S331")
+#
+head(dat4)  # use only the C1-W2 values that are missing from C113 and C3-W1 values missing from C120
+#
+#
 #
 #
 # For dat1 the 61BW to 84BW rows are for the WastedPeat project and can be removed
 dat1 <- dat1 %>%
   filter(!grepl("^6[1-9]BW$|^7[0-9]BW$|^8[0-4]BW$", site_label))
+#
+#
 #
 #
 ########################################################################################################
@@ -63,6 +71,11 @@ dat3 <- dat3 %>%
   mutate(across(5:20, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
   mutate(across(5:20, ~ as.numeric(str_replace(., "^<", ""))))
 #
+dat4 <- dat4 %>%
+  mutate(across(8:19, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
+  mutate(across(8:19, ~ as.numeric(str_replace(., "^<", ""))))
+#C3w1 some dipwells have NA across
+#
 #
 # Make a new column for mesocosm
 dat1$mesocosmID <- as.numeric(gsub("BW", "", dat1$site_label))
@@ -70,23 +83,62 @@ dat1$mesocosmID <- as.numeric(gsub("BW", "", dat1$site_label))
 dat2 <- dat2 %>%
   mutate(    mesocosmID = str_extract(site_label, "(?<=Tag )\\d+"),
     mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=\\s[A-Za-z])"),mesocosmID), 
-    mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=-)"),mesocosmID),mesocosmID = as.integer(mesocosmID) )
+    mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=-)"),mesocosmID),mesocosmID = as.integer(mesocosmID) ) %>%
+select(sample_code, site_label, mesocosmID, everything())
 #    
 dat3 <- dat3 %>%
   mutate(mesocosmID = str_extract(site_label, "^\\d+(?=-)"),
- mesocosmID = if_else( is.na(mesocosmID), str_extract(site_label, "\\d+$"),  mesocosmID ),       
-         mesocosmID = as.integer(mesocosmID)  )
+ mesocosmID = if_else( is.na(mesocosmID), str_extract(site_label, "\\d+$"),  mesocosmID ), mesocosmID = as.integer(mesocosmID)  )
 #
+dat4 <- dat4 %>%
+  mutate(     mesocosmID = str_extract(site_label, "^\\d+(?=-)"),
+    mesocosmID = as.integer(mesocosmID)   )  %>%
+select(-c(4:7)) %>%
+select(sample_code, site_label, mesocosmID, everything())
+#
+# from dat 4 subset only the useful data (not replicated)
+#subset from dat4 only, the site_labels that contain "C1- W2" but the mesocosm ID is not in dat 2
+dat4_subset_C113 <- dat4 %>%
+  rename(bottle = 4)  %>%
+  filter(grepl("C1- W2", site_label)) %>%
+  filter(mesocosmID %in% c(1, 2, 4, 13, 14, 15, 16, 28, 29, 31, 37, 38, 40, 56, 57, 58, 59, 60))
+#
+dat4_subset_C113 <-  dat4_subset_C113 %>%
+  group_by(mesocosmID) %>%
+  summarise(     across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
+    .groups = "drop"   ) %>%   #average bottle A and B 
+mutate(sample_code = "C118") %>%
+mutate(site_label = paste0(mesocosmID, "-C1 W2"))   %>%
+select(sample_code, site_label, mesocosmID, everything())
+#
+dat4_subset_C120 <- dat4 %>%
+  filter(grepl("C3-W1", site_label)) %>%
+  filter(mesocosmID %in% c(1,3, 5, 10, 13, 14, 16, 18, 23, 24, 25, 26, 27, 28, 29, 33, 34, 35, 36, 38, 42, 43, 44,47, 55, 58))
+#
+dat4_C2W1 <- dat4 %>%
+  filter(grepl("C2-W1", site_label)) %>%
+  filter(grepl("DW", site_label))
+#
+dat4_C2W2 <- dat4 %>%
+  filter(grepl("C2-W2", site_label)) 
+#
+dat4_tap_rain <- dat4 %>%
+  filter(grepl("water", ...2)) %>%
+  mutate(site_label = if_else( sample_code == "C118-320", "Rainwater", site_label) ) %>%
+  mutate(site_label = if_else( sample_code == "C118-321", "Tap water", site_label) ) 
+#
+# combine these subsets of dat 4
+dat4_new <- bind_rows(dat4_subset_C113, dat4_subset_C120, dat4_C2W1, dat4_C2W2, dat4_tap_rain)
 #
 # Combine data files into one dataframe
-dat <- bind_rows(dat1, dat2, dat3)
+dat <- bind_rows(dat1, dat2, dat3, dat4_new)
 #
-str(dat)  # 425 obs of 41 vars
+str(dat)  # 590 obs of 42 vars
 #
 # Remove any columns full of NAs
 dat <- dat[, colSums(!is.na(dat)) > 0]
 #
-str(dat) # 425 obs of 34 vars
+str(dat) # 590 obs of 34 vars
 #
 ##
 ############################################################################
@@ -146,6 +198,12 @@ head(ancil_dat6)
 #
 ancil_dat7 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 5-W2.csv")   # this is associated with C120 
 head(ancil_dat7)
+#
+ancil_dat8 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 2-W1.csv")   # this is associated with C118 
+head(ancil_dat8)
+#
+ancil_dat9 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 2-W2.csv")   # this is associated with C118 
+head(ancil_dat9)
 
 #
 #
@@ -154,6 +212,11 @@ ancil_dat1 <- ancil_dat1 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat2 <- ancil_dat2 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat3 <- ancil_dat3 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat4 <- ancil_dat4 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat5 <- ancil_dat5 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat6 <- ancil_dat6 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat7 <- ancil_dat7 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat8 <- ancil_dat8 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
+ancil_dat9 <- ancil_dat9 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 #
 #
 # Modify the individual df's so they align for binding
@@ -171,14 +234,18 @@ ancil_dat6$Cycle.no. <- as.character(ancil_dat6$Cycle.no.)
 #
 ancil_dat7$Cycle.no. <- as.character(ancil_dat7$Cycle.no.)
 #
+ancil_dat8$Cycle.no. <- as.character(ancil_dat8$Cycle.no.)
+#
+ancil_dat9$Cycle.no. <- as.character(ancil_dat9$Cycle.no.)
+#
 # Remove the "-DW after sample.name to align for merging
 ancil_dat5 <- ancil_dat5 %>%
   mutate(Sample.name = str_remove(Sample.name, "-DW$"))
 #
 #
 # Merge the ancil dat df's together
-ancil_dat <- bind_rows(ancil_dat1, ancil_dat2, ancil_dat3, ancil_dat4, ancil_dat5, ancil_dat6, ancil_dat7)
-head(ancil_dat) #564 obs of 27 vars
+ancil_dat <- bind_rows(ancil_dat1, ancil_dat2, ancil_dat3, ancil_dat4, ancil_dat5, ancil_dat6, ancil_dat7, ancil_dat8, ancil_dat9)
+str(ancil_dat) #745 obs of 27 vars
 #
 colnames(ancil_dat)[colnames(ancil_dat) == "Source.site.Location"] <- "source_site"
 colnames(ancil_dat)[colnames(ancil_dat) == "Sample.name"] <- "site_label"
@@ -228,7 +295,7 @@ dat <- dat %>%
 levels(as.factor(dat$C.W))
 # Reorder the factor levels
 dat <- dat %>%
-  mutate(C.W = factor(C.W, levels = c("BW", "BL", "1_1", "1_2", "3_1", "4_1", "5_2")))
+  mutate(C.W = factor(C.W, levels = c("BW", "BL", "1_1", "1_2", "2_1", "2_2", "3_1", "4_1", "5_2")))
 #
 # Trim trailing zeroes in Group
 dat$Group <- trimws(dat$Group)
@@ -258,10 +325,24 @@ dat$SO4_S_mg_l <- dat$SO4_mg_l/96.06*32.06
 # Remove any columns full of NAs
 dat <- dat[, colSums(!is.na(dat)) > 0]
 #
+
+#
+# make a new column for site
+dat <- dat %>%
+  mutate(
+    site_new = case_when(
+      site == "TP-A" ~ "Pymoor",
+      site == "WF-A" ~ "Wrights",
+      site == "RG-PEF" ~ "Rosedene1",
+      site == "RG-R8" ~ "Rosedene2",
+      site == "RV" ~ "Railway View",
+      TRUE ~ site    )   ) 
+#
 # Reorder columns
 #
-dat <- dat %>% select(sample_code, site_label, site, mesocosmID, Group, sample_type, Week.no., Cycle.no., Week1.2, C.W, everything())
-#
+dat <- dat %>% select(sample_code, site_label, site, site_new, mesocosmID, Group, sample_type, Week.no., Cycle.no., Week1.2, C.W, everything())
+
+##
 write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/LP3+_mesocosm_dat_all.csv")
 #
 #################################################################################
@@ -420,6 +501,105 @@ sum(dat$NO2_mg_l > 0.055 & dat$Week.no. >= 37, na.rm = TRUE) #123
 #
 #
 #### TIME SERIES PLOTS ####
+#
+#
+# plot variables by site
+#
+#subset dat
+dat_subset <- dat %>%
+  filter(!is.na(C.W), C.W != "BW", C.W != "4_1")
+#
+plot_variable_by_site <- function(data, variable, site_col = "site_new", group_col = "Group", y_label = NULL, y_breaks = c(0, 10, 20), y_limits = c(0, 20)) {
+  
+  sites <- unique(data[[site_col]])
+  sites <- sites[!is.na(sites)]
+  
+  plot_site <- function(site_name, bottom = FALSE) {
+    site_data <- data[data[[site_col]] == site_name, ]
+    if(nrow(site_data) == 0) return(NULL)
+    
+    current_groups <- unique(site_data[[group_col]])
+    shape_map <- c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)
+    shape_map <- shape_map[names(shape_map) %in% current_groups]
+    
+    ggplot(site_data, aes(
+      x = as.numeric(Week.no.),
+      y = .data[[variable]],
+      shape = .data[[group_col]],
+      fill = .data[[site_col]]
+    )) +
+      stat_summary(fun.data = "mean_se", geom = "errorbar",
+                   width = 0, alpha = 0.6, color = "black",
+                   position = position_dodge(width = 0.8)) +
+      stat_summary(fun = "mean", geom = "point",
+                   size = 3, alpha = 0.6,
+                   position = position_dodge(width = 0.8)) +
+      scale_shape_manual(values = shape_map) +
+      scale_fill_manual(values = c("Rosedene2" = "#A347F3", "Rosedene1" = "#F4B400",    "Wrights" = "#E63978",    "Railway View" = "#4A90E2",      "Pymoor" = "#66A035"     )) +
+      guides(fill = "none", shape = guide_legend(title = NULL) ) +      theme_minimal() +
+      theme(
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),  
+        axis.ticks.y = element_line(color = "black"), 
+        axis.text.x  = element_text(size = 12),
+        axis.ticks.x = element_line(color = "black"),
+        axis.text.y  = element_text(size = 12),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+        panel.grid = element_blank()) +
+      scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),
+        labels = if (bottom) c("BL", "2", "3", "4", "5", "6", "10") else rep("", 7)  ) +
+      scale_y_continuous( limits = y_limits,breaks = y_breaks )  }
+  
+  plots <- lapply(seq_along(sites), function(i) plot_site(sites[i], bottom = (i == length(sites))))
+  plots <- plots[!sapply(plots, is.null)]
+  
+  # Create a blank plot for shared y-axis label
+  if(!is.null(y_label)) {
+    yaxis_plot <- ggplot() + 
+      theme_void() +
+      labs(y = y_label) +
+      theme(
+        axis.title.y = element_text(size = 14, angle = 90, vjust = 0.5, hjust = 0.5)
+      )
+    combined_plot <- wrap_plots(yaxis_plot, wrap_plots(plots, ncol = 1, guides = "collect"), 
+                                ncol = 2, widths = c(0, 0.95)) & 
+      theme(legend.position = "bottom")
+  } else {
+    combined_plot <- wrap_plots(plots, ncol = 1, guides = "collect") & 
+      theme(legend.position = "bottom")
+  }
+  
+  return(combined_plot)
+}
+#
+
+
+NO3_plot <- plot_variable_by_site(
+  dat_subset,  "NO3_N_mg_l",  site_col = "site_new",
+  y_label = expression(NO[3]^"-" * "-N" ~ "(mg L"^-1*")"),
+  y_breaks = c(0, 10, 20), y_limits = c(0, 20) )
+NO3_plot
+#
+NH4_plot <- plot_variable_by_site(
+  dat_subset,  "NH4_N_mg_l",  site_col = "site_new",
+  y_label = expression(NH[4]^"+" ~ "(mg L"^-1*")"),
+  y_breaks = c(0, 2, 4, 6), y_limits = c(0, 7) )
+NH4_plot
+#
+PO4_plot <- plot_variable_by_site(
+  dat_subset,  "PO4_P_mg_l",  site_col = "site_new",
+  y_label = expression(PO[4]^"-" ~ "(mg L"^-1*")"),
+  y_breaks = c(0.1, 0.2, 0.3), y_limits = c(0.08, 0.3) )
+PO4_plot
+#
+# Combine plots
+jpeg("LP3+_mesocosm_NO3_NH4_PO4.jpeg", units="in", width=11, height=10, res=250)
+combined_plot <- NO3_plot | NH4_plot | PO4_plot +
+  plot_layout(guides = "collect") &  # collect legends across all plots
+  theme(legend.position = "bottom",  legend.text = element_text(size = 12))  # single shared legend at bottom
+combined_plot
+dev.off()
+
 #
 #### pH ####   
 
@@ -662,7 +842,7 @@ NO3_time <- ggplot(subset(dat, !is.na(C.W)& C.W != "BW" & C.W != "4_1"), aes(x =
   geom_boxplot(aes(fill=Group), position = position_dodge(width = 0.5),  outlier.shape = NA,   width = 0.45) + 
   geom_jitter(aes(fill=Group), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.5), size = 2, alpha = 0.6, shape=21, colour="black") +
    # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_discrete(labels = c("0", "2", "3", "6", "10")) +
+  scale_x_discrete(labels = c("BL", "2", "3", "4", "5", "6", "10")) +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")")) +
   theme_minimal() +
   theme(axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
@@ -673,7 +853,7 @@ NO3_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")")) +
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41,42, 43, 47),  labels = c("BL", "2", "3", "4", "5", "6", "10"))  +
   theme_minimal() +
   theme(axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") ) 
@@ -686,7 +866,7 @@ NO3_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(NO[3]^"-" * "-N" ~ "(mg L"^-1*")")) +
    # scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41,42, 43, 47),  labels = c("BL", "2", "3", "4", "5", "6", "10"))  +
   theme_minimal() +
   theme(legend.position = c(.85, .65),  axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
@@ -695,13 +875,30 @@ NO3_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
 NO3_by_site_treatment
 
 
+
+NO3_by_site_treatment2 <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = NO3_N_mg_l, shape = Group, fill =site_new)) +
+  stat_summary(fun.data = "mean_se", geom = "errorbar", position = position_dodge(width = 0.8), 
+               width = 0, alpha=0.6, color = "black") +
+  stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
+  facet_wrap(~ site_new, ncol = 1) +
+  labs(y = expression(NO[3]^"-" * "-N" ~ "(mg L"^-1*")")) +
+  # scale_y_log10() + 
+  scale_x_continuous( breaks = c(37, 39, 40, 41,42, 43, 47),  labels = c("BL", "2", "3", "4", "5", "6", "10"))  +
+  theme_minimal() +
+  theme(legend.position = c(.85, .95), panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5), axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
+  scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
+  scale_fill_manual(values = c("Rosedene2" = "#A347F3", "Rosedene1" = "#F4B400", "Wrights" = "#E63978",  "Railway View" = "#4A90E2",  "Pymoor" ="#66A035") ) + 
+  guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black"))) + guides(fill = "none") #legend.box = "horizontal
+NO3_by_site_treatment2
+
+
 NO3_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = NO3_N_mg_l,  fill =Group)) +
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression(NO[3]^"-" * "-N" ~ "(mg L"^-1*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41,42, 43, 47),  labels = c("BL", "2", "3", "4", "5", "6", "10"))  +
   theme_minimal() +
   theme(legend.position = c(.76, .85), axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -712,7 +909,7 @@ NO3_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), ae
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = site) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(NO[3]^"-" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41,42, 43, 47),  labels = c("BL", "2", "3", "4", "5", "6", "10"))  +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") )  #axis.text.x = element_blank(),
@@ -722,7 +919,7 @@ NO3_by_site
 PO4_time <- ggplot(subset(dat, !is.na(C.W)& C.W != "BW" & C.W != "4_1"), aes(x = as.factor(Week.no.), y = PO4_mg_l)) +
   geom_boxplot(aes(fill=Group), position = position_dodge(width = 0.5),  outlier.shape = NA,   width = 0.45) + 
   geom_jitter(aes(fill=Group), position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.5), size = 2, alpha = 0.6, shape=21, colour="black") +
-    #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
+      #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
   scale_x_discrete( labels = c("0", "2", "3", "6", "10")) +
   labs(y = expression(PO[4]^"-" ~ "(mg L"^-1*")"),  x = "Week") +
   theme_minimal() +
@@ -736,6 +933,7 @@ PO4_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7) +
   labs(y = expression(PO[4]^"-" ~ "(mg L"^-1*")"), x = "Week") +
     #scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1",   "Cycle 5\nWeek 2")) +
+  facet_wrap(~ site_new, ncol = 1) +
   scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
   theme_minimal() +
   theme(legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
@@ -746,6 +944,7 @@ PO4_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun.data = "mean_se", geom = "errorbar", position = position_dodge(width = 0.8), 
                width = 0, alpha=0.6, color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
+  facet_wrap(~ site_new, ncol = 1) +
   labs(y = expression(PO[4]^{"3-"}*"-P (mg L"^-1*")")) +
   # scale_y_log10() + 
   scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
@@ -931,6 +1130,7 @@ NH4_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != 
   stat_summary(fun.data = "mean_se", geom = "errorbar", position = position_dodge(width = 0.8), 
                width = 0, alpha=0.6, color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
+  facet_wrap(~ site_new, ncol = 1) +
   labs(y = expression(NH[4]^"+"*"-N" ~ "(mg L"^-1*")")) +
   #scale_y_log10() + 
   scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
