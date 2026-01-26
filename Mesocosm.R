@@ -66,6 +66,11 @@ dat1 <- dat1 %>%
 dat2 <- dat2 %>%
   mutate(across(7:24, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
   mutate(across(7:24, ~ as.numeric(str_replace(., "^<", "")))) # warning due to 1 nd in NO2 which becomes NA
+
+#############################################################################
+######### HAS DUPLICATES --TAKE AVERAGE #### SOMETIMES A, B, AND C BOTTLE REF
+#############################################################################
+
 #
 dat3 <- dat3 %>%
   mutate(across(5:20, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
@@ -98,6 +103,9 @@ select(sample_code, site_label, mesocosmID, everything())
 #
 # from dat 4 subset only the useful data (not replicated)
 #subset from dat4 only, the site_labels that contain "C1- W2" but the mesocosm ID is not in dat 2
+
+##### SOMETHING IS GOING ON HERE RESULTING IN DUPLICATE ROWS ##########
+
 dat4_subset_C113 <- dat4 %>%
   rename(bottle = 4)  %>%
   filter(grepl("C1- W2", site_label)) %>%
@@ -111,6 +119,8 @@ mutate(sample_code = "C118") %>%
 mutate(site_label = paste0(mesocosmID, "-C1 W2"))   %>%
 select(sample_code, site_label, mesocosmID, everything())
 #
+#
+###### EVEN THOUGH I AM SUBSETTING SOMEHOW ALL OF THEM ARE ENDING UP IN DAT.... LOOK INTO!
 dat4_subset_C120 <- dat4 %>%
   filter(grepl("C3-W1", site_label)) %>%
   filter(mesocosmID %in% c(1,3, 5, 10, 13, 14, 16, 18, 23, 24, 25, 26, 27, 28, 29, 33, 34, 35, 36, 38, 42, 43, 44,47, 55, 58))
@@ -332,11 +342,15 @@ dat <- dat %>%
   mutate(
     site_new = case_when(
       site == "TP-A" ~ "Pymoor",
-      site == "WF-A" ~ "Wrights",
+      site == "RV" ~ "Railway View",
       site == "RG-PEF" ~ "Rosedene1",
       site == "RG-R8" ~ "Rosedene2",
-      site == "RV" ~ "Railway View",
+      site == "WF-A" ~ "Wrights",
       TRUE ~ site    )   ) 
+#
+dat$site_new <- factor(dat$site_new,
+                       levels = c("Pymoor", "Railway View", "Rosedene1", "Rosedene2", "Wrights"))
+levels(dat$site_new)
 #
 # Reorder columns
 #
@@ -425,13 +439,13 @@ mean(rain$Ca_mg_l)
 sd(rain$Ca_mg_l)
 #################################################################################
 #### Summary stats ####
-# filter out tap water and rain water and bin water with Week.no. >= 37 & 
+# filter out tap water and rain water and bin water with Week.no. >= 38 (week 37 is baseline) 
 
-mean(subset(dat, Week.no. >= 37 )$NO2_N_mg_l, na.rm = TRUE)
-sd(subset(dat, Week.no. >= 37 )$NO2_N_mg_l, na.rm = TRUE)
+mean(subset(dat, Week.no. >= 38 )$NO2_N_mg_l, na.rm = TRUE)
+sd(subset(dat, Week.no. >= 38 )$NO2_N_mg_l, na.rm = TRUE)
 
-mean(subset(dat, Week.no. >= 37 & Cycle.no. == "BL")$NO3_N_mg_l, na.rm = TRUE)
-sd(subset(dat, Week.no. >= 37 & Cycle.no. == "BL")$NO3_N_mg_l, na.rm = TRUE)
+mean(subset(dat, Cycle.no. == "BL")$NO3_N_mg_l, na.rm = TRUE)
+sd(subset(dat,  Cycle.no. == "BL")$NO3_N_mg_l, na.rm = TRUE)
 
 mean(subset(dat, Week.no. == 47 )$NO3_N_mg_l, na.rm = TRUE)
 sd(subset(dat, Week.no. == 47 )$NO3_N_mg_l, na.rm = TRUE)
@@ -444,6 +458,9 @@ sd(subset(dat, Cycle.no. == "BL" & site =="TP-A" )$NH4_N_mg_l, na.rm = TRUE)
 
 mean(subset(dat, Week.no. == 47 & site =="TP-A" & Group =="Rewetted")$NH4_N_mg_l, na.rm = TRUE)
 sd(subset(dat, Week.no. == 47 & site =="TP-A" & Group =="Rewetted")$NH4_N_mg_l, na.rm = TRUE)
+
+mean(subset(dat, Week.no. >= 38)$NO2_N_mg_l, na.rm = TRUE)
+sd(subset(dat, Week.no. >= 38)$NO2_N_mg_l, na.rm = TRUE)
 
 
 mean(subset(dat, site == "TP-A" & C.W != "BW" & C.W != "4_1" & site_label != "Tap water" & site_label != "Rainwater")$Ca_mg_l, na.rm = TRUE)
@@ -490,10 +507,10 @@ mean(subset(dat_bw, site != "WF-A")$Cr_ug_l, na.rm = TRUE)
 #
 #
 # Count of total samples during experimental phase
-nrow(subset(dat, Week.no. >= 37 & !is.na(Ca_mg_l)))  #341
-sum(dat$NO2_mg_l > 0.055 & dat$Week.no. >= 37, na.rm = TRUE) #123
+nrow(subset(dat, Week.no. >= 38 & !is.na(Ca_mg_l)))  #281
+sum(dat$NO2_mg_l > 0.055 & dat$Week.no. >= 38, na.rm = TRUE) #83
 
-123/341*100
+83/281*100
 
 
 
@@ -511,11 +528,13 @@ dat_subset <- dat %>%
 #
 plot_variable_by_site <- function(data, variable, site_col = "site_new", group_col = "Group", y_label = NULL, y_breaks = c(0, 10, 20), y_limits = c(0, 20)) {
   
-  sites <- unique(data[[site_col]])
+  sites <- levels(data[[site_col]])
   sites <- sites[!is.na(sites)]
   
   plot_site <- function(site_name, bottom = FALSE) {
     site_data <- data[data[[site_col]] == site_name, ]
+    site_data[[site_col]] <- factor(site_data[[site_col]],
+                                    levels = levels(data[[site_col]]))
     if(nrow(site_data) == 0) return(NULL)
     
     current_groups <- unique(site_data[[group_col]])
@@ -532,12 +551,13 @@ plot_variable_by_site <- function(data, variable, site_col = "site_new", group_c
                    width = 0, alpha = 0.6, color = "black",
                    position = position_dodge(width = 0.8)) +
       stat_summary(fun = "mean", geom = "point",
-                   size = 3, alpha = 0.6,
+                   size = 3, alpha = 0.6, aes(fill = .data[[site_col]]), 
                    position = position_dodge(width = 0.8)) +
       scale_shape_manual(values = shape_map) +
-      scale_fill_manual(values = c("Rosedene2" = "#A347F3", "Rosedene1" = "#F4B400",    "Wrights" = "#E63978",    "Railway View" = "#4A90E2",      "Pymoor" = "#66A035"     )) +
-      guides(fill = "none", shape = guide_legend(title = NULL) ) +      theme_minimal() +
-      theme(
+      scale_fill_manual(values = c(  "Pymoor" = "#66A035" ,  "Railway View" = "#4A90E2",   "Rosedene1" = "#F4B400", "Rosedene2" = "#A347F3",   "Wrights" = "#E63978" )) +
+      theme_minimal() +
+      guides(  shape = guide_legend(order = 1), fill  = guide_legend(order = 2)    ) +
+      theme(legend.position = "none", 
         axis.title.x = element_blank(),
         axis.title.y = element_blank(),  
         axis.ticks.y = element_line(color = "black"), 
@@ -561,12 +581,9 @@ plot_variable_by_site <- function(data, variable, site_col = "site_new", group_c
       theme(
         axis.title.y = element_text(size = 14, angle = 90, vjust = 0.5, hjust = 0.5)
       )
-    combined_plot <- wrap_plots(yaxis_plot, wrap_plots(plots, ncol = 1, guides = "collect"), 
-                                ncol = 2, widths = c(0, 0.95)) & 
-      theme(legend.position = "bottom")
+    combined_plot <- wrap_plots(yaxis_plot, wrap_plots(plots, ncol = 1),                                 ncol = 2, widths = c(0, 0.95)) 
   } else {
-    combined_plot <- wrap_plots(plots, ncol = 1, guides = "collect") & 
-      theme(legend.position = "bottom")
+    combined_plot <- wrap_plots(plots, ncol = 1) 
   }
   
   return(combined_plot)
@@ -582,23 +599,40 @@ NO3_plot
 #
 NH4_plot <- plot_variable_by_site(
   dat_subset,  "NH4_N_mg_l",  site_col = "site_new",
-  y_label = expression(NH[4]^"+" ~ "(mg L"^-1*")"),
+  y_label = expression(NH[4]^"+"*"-N" ~ "(mg L"^-1*")"),
   y_breaks = c(0, 2, 4, 6), y_limits = c(0, 7) )
 NH4_plot
 #
 PO4_plot <- plot_variable_by_site(
   dat_subset,  "PO4_P_mg_l",  site_col = "site_new",
-  y_label = expression(PO[4]^"-" ~ "(mg L"^-1*")"),
+  y_label = expression(PO[4]^{"3-"}*"-P (mg L"^-1*")"),
   y_breaks = c(0.1, 0.2, 0.3), y_limits = c(0.08, 0.3) )
 PO4_plot
 #
 # Combine plots
+#
 jpeg("LP3+_mesocosm_NO3_NH4_PO4.jpeg", units="in", width=11, height=10, res=250)
+
+combined_plot <-   (NO3_plot | NH4_plot | PO4_plot) / plot_spacer() +  
+  plot_layout(    guides = "collect",    heights = c(1, 0.05)  ) &   theme( legend.position = "bottom",    legend.text  = element_text(size = 12),    legend.title = element_blank()  )
+combined_plot
+
+dev.off()
+
+
+
+
+
 combined_plot <- NO3_plot | NH4_plot | PO4_plot +
   plot_layout(guides = "collect") &  # collect legends across all plots
-  theme(legend.position = "bottom",  legend.text = element_text(size = 12))  # single shared legend at bottom
+  theme(legend.position = "bottom",legend.box = "horizontal", legend.box.just = "center", legend.justification = "center", legend.text = element_text(size = 12),  legend.title = element_blank() )  # single shared legend at bottom
 combined_plot
-dev.off()
+
+
+
+
+
+
 
 #
 #### pH ####   
@@ -1516,7 +1550,7 @@ dev.off()
 #### STATISTICAL ANALYSIS ####
 # We are interested in the effect of time, site, and treatment
 
-lmer_NO3 <- lmer(log(NO3_N_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_NO3 <- lmer(log(NO3_N_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_NO3)
 anova(lmer_NO3)
 plot(lmer_NO3) # log improves
@@ -1530,7 +1564,7 @@ exp(0.161)
 exp(0.171)
 exp(0.291)
 
-lmer_NH4 <- lmer(log(NH4_N_mg_l)  ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_NH4 <- lmer(log(NH4_N_mg_l)  ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_NH4)
 anova(lmer_NH4)
 plot(lmer_NH4) 
@@ -1545,7 +1579,7 @@ exp(0.2128)
 exp(0.1944)
 
 
-lmer_PO4 <- lmer(log(PO4_P_mg_l)  ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_PO4 <- lmer(log(PO4_P_mg_l)  ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_PO4)
 anova(lmer_PO4)
 plot(lmer_PO4) 
@@ -1554,54 +1588,56 @@ qqline(resid(lmer_PO4)) # log improves
 emmeans(lmer_PO4, pairwise ~ Group)
 emmeans(lmer_PO4, pairwise ~ Group | site)
 
-lmer_K <- lmer(log(K_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_K <- lmer(log(K_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_K)
 anova(lmer_K) # site sig, group not sig
 plot(lmer_K) # log improves, maybe 1 outlier?
 qqnorm(resid(lmer_K))
 qqline(resid(lmer_K))
 
-lmer_SO4 <- lmer(log(SO4_S_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_SO4 <- lmer(log(SO4_S_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_SO4)
 anova(lmer_SO4) # site sig, group not sig
 plot(lmer_SO4) # log improves
 qqnorm(resid(lmer_SO4))
 qqline(resid(lmer_SO4))
 
-lmer_Ca <- lmer(log(Ca_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_Ca <- lmer(log(Ca_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_Ca)
-anova(lmer_Ca) # site sig, group not sig
+anova(lmer_Ca) # site sig, group not sig, week significant
 plot(lmer_Ca) # log improves, maybe 1 outlier?
 qqnorm(resid(lmer_Ca))
 qqline(resid(lmer_Ca))
 
-lmer_Mg <- lmer(log(Mg_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_Mg <- lmer(log(Mg_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_Mg)
 anova(lmer_Mg) # site sig, group not sig
 plot(lmer_Mg) # log improves
 qqnorm(resid(lmer_Mg))
 qqline(resid(lmer_Mg))
 
-lmer_Na <- lmer(log(Na_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_Na <- lmer(log(Na_mg_l) ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_Na)
 anova(lmer_Na) # site sig, group not sig
 plot(lmer_Na) # log improves
 qqnorm(resid(lmer_Na))
 qqline(resid(lmer_Na))
 
-lmer_Cl <- lmer(Cl_mg_l ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_Cl <- lmer(Cl_mg_l ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_Cl)
 anova(lmer_Cl) # site sig group not sig
 plot(lmer_Cl) # kinda equivalent if not slightly worse after log
 qqnorm(resid(lmer_Cl))
 qqline(resid(lmer_Cl))
 
-lmer_F <- lmer(F_mg_l ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 37))
+lmer_F <- lmer(F_mg_l ~ site * Group * Week.no. + (1 | mesocosmID), data = subset(dat, Week.no. >= 38))
 summary(lmer_F)
-anova(lmer_F) # site sig, grop not sig
+anova(lmer_F) # site sig, group sig
 plot(lmer_F) # good
 qqnorm(resid(lmer_F))
 qqline(resid(lmer_F))
+emmeans(lmer_F, pairwise ~ Group)
+emmeans(lmer_PO4, pairwise ~ Group | site)
 
 ##############################################################################
 #
