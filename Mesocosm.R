@@ -76,6 +76,7 @@ dat3 <- dat3 %>%
   mutate(across(5:20, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
   mutate(across(5:20, ~ as.numeric(str_replace(., "^<", ""))))
 #
+#
 dat4 <- dat4 %>%
   mutate(across(8:19, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
   mutate(across(8:19, ~ as.numeric(str_replace(., "^<", ""))))
@@ -136,6 +137,8 @@ dat4_tap_rain <- dat4 %>%
   filter(grepl("water", ...2)) %>%
   mutate(site_label = if_else( sample_code == "C118-320", "Rainwater", site_label) ) %>%
   mutate(site_label = if_else( sample_code == "C118-321", "Tap water", site_label) ) 
+#
+#
 #
 # combine these subsets of dat 4
 dat4_new <- bind_rows(dat4_subset_C113, dat4_subset_C120, dat4_C2W1, dat4_C2W2, dat4_tap_rain)
@@ -320,10 +323,26 @@ dat <- dat %>%
 #
 levels(as.factor(dat$site)) # make site a factor 
 #
-# Cycle 5 is missing the Week.no. and I think it is 48
+# Cycle 5 is missing the Week.no. and I think it is 47
 dat <- dat %>%
   mutate(Week.no. = ifelse(C.W == "5_2", 47, Week.no.))
 #
+#
+
+# dat3 has duplicates, take average of bottle refs
+#
+datx <-  dat %>%
+  filter(startsWith(sample_code, "C120")) %>%  # subset rows
+  group_by( C.W, mesocosmID, `Cycle.no.`, `Week.no.`, `Week1.2`) %>%  
+  
+  summarise(     across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
+                 .groups = "drop"   ) %>%   #average bottle A and B 
+  mutate(sample_code = paste0("C120_", mesocosmID)) %>%
+  mutate(site_label = paste0(mesocosmID, "-C", `Cycle.no.`, "-W", `Week1.2`))   %>%
+  select(sample_code, site_label, mesocosmID, everything())
+#
+
+
 #### convert to per molecule basis ####
 dat$NO2_N_mg_l <- dat$NO2_mg_l/46.01*14.01
 dat$NO3_N_mg_l <- dat$NO3_mg_l/62*14.01
