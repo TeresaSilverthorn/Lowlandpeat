@@ -32,19 +32,36 @@ dat1 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Re
 head(dat1) #84 obs of 32 vars
 #
 #
-dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C113 INTERIM 20250330_TS.xlsx", range= "A10:X258") 
+dat2 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C113 INTERIM 20250330_TS.xlsx", range= "A10:X258") #This report is missing some data for C1-W2 (mesocosm IDs 1,2,4,13 etc so we use C118 which has all in duplicate). Also, note this has duplicate bottle refs for C1W1--take the average
+#note we are missing mesocosm 17 for C1 W2
 #
 head(dat2)
 #
+dat2 <- dat2  %>%
+filter(!grepl("C1- W2", site_label))  #exclude rows which contain "C1- W2" in site_label
 #
-dat3 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C120 INTERIM 20250415_TS.xlsx", range= "A10:T127")  # note this is weirdly missing some samples (every other and some random ones)
+#
+dat3 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C120 INTERIM 20250415_TS.xlsx", range= "A10:T127")  # note this is weirdly missing some samples for C3-W1 (every other and some random ones, so we use C118 instead). Also there are week 4 bin water measurements, which we will also exclude
 #
 head(dat3)
+#
+dat3 <- dat3  %>%
+  filter(!grepl("C3-W1", site_label))  %>% #exclude rows with "C3- W1" in site_label
+  filter(!grepl("C4-W1-BW", site_label))    # exclude bin water measurements
+
 #
 #
 dat4 <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/Report C118 20251124_TS.xlsx", range= "A10:S331")
 #
-head(dat4)  # use only the C1-W2 values that are missing from C113 and C3-W1 values missing from C120
+head(dat4)  
+#
+dat4 <- dat4%>% 
+  filter(!grepl("BW", site_label)) %>% # exclude BW sampling here
+ filter(!sample_code %in% c("C118-021", "C118-024"))
+
+#remove these two points which are C118-021  C118-024 which are in 113
+
+
 #
 #
 #
@@ -56,6 +73,8 @@ dat1 <- dat1 %>%
 #
 #
 #
+#
+#
 ########################################################################################################
 #### Data cleaning of values below detection limit ####
 #
@@ -63,14 +82,11 @@ dat1 <- dat1 %>%
 dat1 <- dat1 %>%
   mutate(across(3:32, ~ as.numeric(str_replace(., "^<", "")))) # Warning message is due to 2 nd NH4 which become NAs
 #
+#
 dat2 <- dat2 %>%
   mutate(across(7:24, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
   mutate(across(7:24, ~ as.numeric(str_replace(., "^<", "")))) # warning due to 1 nd in NO2 which becomes NA
-
-#############################################################################
-######### HAS DUPLICATES --TAKE AVERAGE #### SOMETIMES A, B, AND C BOTTLE REF
-#############################################################################
-
+#
 #
 dat3 <- dat3 %>%
   mutate(across(5:20, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
@@ -79,8 +95,12 @@ dat3 <- dat3 %>%
 #
 dat4 <- dat4 %>%
   mutate(across(8:19, ~ str_remove_all(., "\\*"))) %>%    # remove the * after the out of range value "**nn** =
-  mutate(across(8:19, ~ as.numeric(str_replace(., "^<", ""))))
-#C3w1 some dipwells have NA across
+  mutate(across(8:19, ~ as.numeric(str_replace(., "^<", "")))) %>%
+mutate(site_label = if_else( sample_code == "C118-320", "Rainwater", site_label) ) %>%
+  mutate(site_label = if_else( sample_code == "C118-321", "Tap water", site_label) ) %>%
+mutate(site_label = if_else( sample_code == "C118-259", "Rainwater", site_label) )
+
+#
 #
 #
 # Make a new column for mesocosm
@@ -88,13 +108,13 @@ dat1$mesocosmID <- as.numeric(gsub("BW", "", dat1$site_label))
 #
 dat2 <- dat2 %>%
   mutate(    mesocosmID = str_extract(site_label, "(?<=Tag )\\d+"),
-    mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=\\s[A-Za-z])"),mesocosmID), 
-    mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=-)"),mesocosmID),mesocosmID = as.integer(mesocosmID) ) %>%
-select(sample_code, site_label, mesocosmID, everything())
+             mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=\\s[A-Za-z])"),mesocosmID), 
+             mesocosmID = if_else( is.na(mesocosmID),str_extract(site_label, "^\\d+(?=-)"),mesocosmID),mesocosmID = as.integer(mesocosmID) ) %>%
+  select(sample_code, site_label, mesocosmID, everything())
 #    
 dat3 <- dat3 %>%
   mutate(mesocosmID = str_extract(site_label, "^\\d+(?=-)"),
- mesocosmID = if_else( is.na(mesocosmID), str_extract(site_label, "\\d+$"),  mesocosmID ), mesocosmID = as.integer(mesocosmID)  )
+         mesocosmID = if_else( is.na(mesocosmID), str_extract(site_label, "\\d+$"),  mesocosmID ), mesocosmID = as.integer(mesocosmID)  )
 #
 dat4 <- dat4 %>%
   mutate(     mesocosmID = str_extract(site_label, "^\\d+(?=-)"),
@@ -102,49 +122,44 @@ dat4 <- dat4 %>%
 select(-c(4:7)) %>%
 select(sample_code, site_label, mesocosmID, everything())
 #
-# from dat 4 subset only the useful data (not replicated)
-#subset from dat4 only, the site_labels that contain "C1- W2" but the mesocosm ID is not in dat 2
-
-##### SOMETHING IS GOING ON HERE RESULTING IN DUPLICATE ROWS ##########
-
-dat4_subset_C113 <- dat4 %>%
-  rename(bottle = 4)  %>%
-  filter(grepl("C1- W2", site_label)) %>%
-  filter(mesocosmID %in% c(1, 2, 4, 13, 14, 15, 16, 28, 29, 31, 37, 38, 40, 56, 57, 58, 59, 60))
 #
-dat4_subset_C113 <-  dat4_subset_C113 %>%
+#
+#
+# take average of bottles for dat2 and dat 4
+#
+dat2_C1W1 <-  dat2 %>%
+  filter(!grepl("BL|Tap", site_label)) %>%  #filter only C1 W1
   group_by(mesocosmID) %>%
   summarise(     across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
-    .groups = "drop"   ) %>%   #average bottle A and B 
-mutate(sample_code = "C118") %>%
-mutate(site_label = paste0(mesocosmID, "-C1 W2"))   %>%
-select(sample_code, site_label, mesocosmID, everything())
+                 .groups = "drop"   ) %>%   #average bottle A and B 
+  mutate(sample_code = paste0("C113_", mesocosmID)) %>%
+  mutate(site_label = paste0(mesocosmID, "-C1- W1"))   %>%  
+  select(sample_code, site_label, mesocosmID, everything())
 #
-#
-###### EVEN THOUGH I AM SUBSETTING SOMEHOW ALL OF THEM ARE ENDING UP IN DAT.... LOOK INTO!
-dat4_subset_C120 <- dat4 %>%
-  filter(grepl("C3-W1", site_label)) %>%
-  filter(mesocosmID %in% c(1,3, 5, 10, 13, 14, 16, 18, 23, 24, 25, 26, 27, 28, 29, 33, 34, 35, 36, 38, 42, 43, 44,47, 55, 58))
-#
-dat4_C2W1 <- dat4 %>%
-  filter(grepl("C2-W1", site_label)) %>%
-  filter(grepl("DW", site_label))
-#
-dat4_C2W2 <- dat4 %>%
-  filter(grepl("C2-W2", site_label)) 
-#
-dat4_tap_rain <- dat4 %>%
-  filter(grepl("water", ...2)) %>%
-  mutate(site_label = if_else( sample_code == "C118-320", "Rainwater", site_label) ) %>%
-  mutate(site_label = if_else( sample_code == "C118-321", "Tap water", site_label) ) 
+# Collect the BL and tap water from dat2
+dat2_BL <- dat2 %>% 
+filter(grepl("BL|Tap", site_label)) 
 #
 #
 #
-# combine these subsets of dat 4
-dat4_new <- bind_rows(dat4_subset_C113, dat4_subset_C120, dat4_C2W1, dat4_C2W2, dat4_tap_rain)
+#
+dat4_C1W2 <- dat4 %>%   #note we are missing mesocosm 17
+  filter(grepl("C1- W2", site_label)) %>%  #filter only C1 W2
+  group_by(mesocosmID) %>%
+  summarise(     across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
+                 .groups = "drop"   ) %>%   #average bottle A and B 
+  mutate(sample_code = paste0("C118_", mesocosmID)) %>%
+  mutate(site_label = paste0(mesocosmID, "-C1- W2"))   %>%  
+  select(sample_code, site_label, mesocosmID, everything())
+#
+#
+#get dat4 C2W1, C2W2, C3W1
+dat4_rest <- dat4 %>%   #note we are missing mesocosm 17
+  filter(!grepl("C1- W2", site_label)) 
+#
 #
 # Combine data files into one dataframe
-dat <- bind_rows(dat1, dat2, dat3, dat4_new)
+dat <- bind_rows(dat1, dat2_C1W1, dat2_BL, dat3, dat4_C1W2, dat4_rest)
 #
 str(dat)  # 590 obs of 42 vars
 #
@@ -152,6 +167,10 @@ str(dat)  # 590 obs of 42 vars
 dat <- dat[, colSums(!is.na(dat)) > 0]
 #
 str(dat) # 590 obs of 34 vars
+#
+# Make NaNs NAs
+dat <- dat %>%
+  mutate(across(where(is.numeric), ~replace(.x, is.nan(.x), NA)))
 #
 ##
 ############################################################################
@@ -193,11 +212,11 @@ ancil_dat2 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Anc
 head(ancil_dat2)
 #
 #
-ancil_dat3 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 1-W1.csv")  # this is associated with C113; issues with date when using excel format
+ancil_dat3 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 1-W1_new.csv")  # this is associated with C113; issues with date when using excel format
 head(ancil_dat3)
 #
 #
-ancil_dat4 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 1-W2.csv")  # this is associated with C113; 
+ancil_dat4 <- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Ancillary Data/Cycle 1-W2_new.csv")  # this is associated with C113; 
 head(ancil_dat4)
 #
 #
@@ -223,8 +242,6 @@ head(ancil_dat9)
 # Subet just the LP3+ data
 ancil_dat1 <- ancil_dat1 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat2 <- ancil_dat2 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
-ancil_dat3 <- ancil_dat3 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
-ancil_dat4 <- ancil_dat4 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat5 <- ancil_dat5 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat6 <- ancil_dat6 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
 ancil_dat7 <- ancil_dat7 %>% filter(grepl("LP3\\+", Project))  #subset LP3+ data
@@ -251,9 +268,6 @@ ancil_dat8$Cycle.no. <- as.character(ancil_dat8$Cycle.no.)
 #
 ancil_dat9$Cycle.no. <- as.character(ancil_dat9$Cycle.no.)
 #
-# Remove the "-DW after sample.name to align for merging
-ancil_dat5 <- ancil_dat5 %>%
-  mutate(Sample.name = str_remove(Sample.name, "-DW$"))
 #
 #
 # Merge the ancil dat df's together
@@ -295,13 +309,15 @@ dat <- dat %>%
 #
 head(dat) # 425 obs of 40 vars
 #
+#
 # Create a level for BW in the Cycle.no. column
 dat <- dat %>% 
 mutate(Cycle.no. = case_when(
   str_detect(site_label, "BW") & is.na(Cycle.no.) ~ "BW",
   TRUE ~ as.character(Cycle.no.) ))
 #
-# Make a new colum called C.W (cycle week) which combines the cycle and week columns
+#
+# Make a new column called C.W (cycle week) which combines the cycle and week columns
 dat <- dat %>%
   mutate(C.W = if_else(is.na(Week1.2), as.character(Cycle.no.), paste(Cycle.no., Week1.2, sep = "_")))
 #
@@ -323,26 +339,11 @@ dat <- dat %>%
 #
 levels(as.factor(dat$site)) # make site a factor 
 #
-# Cycle 5 is missing the Week.no. and I think it is 47
+# Fill missing data
+# Cycle 5 is missing the Week.no., it is 47
 dat <- dat %>%
-  mutate(Week.no. = ifelse(C.W == "5_2", 47, Week.no.))
+  mutate(Week.no. = ifelse(C.W == "5_2", 47, Week.no.)) 
 #
-#
-
-# dat3 has duplicates, take average of bottle refs
-#
-datx <-  dat %>%
-  filter(startsWith(sample_code, "C120")) %>%  # subset rows
-  group_by( C.W, mesocosmID, `Cycle.no.`, `Week.no.`, `Week1.2`) %>%  
-  
-  summarise(     across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
-                 .groups = "drop"   ) %>%   #average bottle A and B 
-  mutate(sample_code = paste0("C120_", mesocosmID)) %>%
-  mutate(site_label = paste0(mesocosmID, "-C", `Cycle.no.`, "-W", `Week1.2`))   %>%
-  select(sample_code, site_label, mesocosmID, everything())
-#
-
-
 #### convert to per molecule basis ####
 dat$NO2_N_mg_l <- dat$NO2_mg_l/46.01*14.01
 dat$NO3_N_mg_l <- dat$NO3_mg_l/62*14.01
@@ -377,6 +378,15 @@ dat <- dat %>% select(sample_code, site_label, site, site_new, mesocosmID, Group
 
 ##
 write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Mesocosms/Data/LP3+_mesocosm_dat_all.csv")
+#
+#
+#
+#
+# Check for each unique C.W how many unique mesocosmIDs?
+dat %>%
+  group_by(C.W) %>%
+  summarise(n_mesocosms = n_distinct(mesocosmID))
+#
 #
 #################################################################################
 #### tap water and rain water ####
