@@ -536,10 +536,10 @@ mean(subset(dat_bw, site != "WF-A")$Cr_ug_l, na.rm = TRUE)
 #
 #
 # Count of total samples during experimental phase
-nrow(subset(dat, Week.no. >= 38 & !is.na(Ca_mg_l)))  #281
-sum(dat$NO2_mg_l > 0.055 & dat$Week.no. >= 38, na.rm = TRUE) #83
+nrow(subset(dat, Week.no. >= 38 & !is.na(Ca_mg_l)))  #325
+sum(dat$NO2_mg_l > 0.055 & dat$Week.no. >= 38, na.rm = TRUE) #226
 
-83/281*100
+226/325*100
 
 
 
@@ -645,6 +645,8 @@ jpeg("LP3+_mesocosm_NO3_NH4_PO4.jpeg", units="in", width=11, height=10, res=250)
 combined_plot <-   (NO3_plot | NH4_plot | PO4_plot) / plot_spacer() +  
   plot_layout(    guides = "collect",    heights = c(1, 0.05)  ) &   theme( legend.position = "bottom",    legend.text  = element_text(size = 12),    legend.title = element_blank()  )
 combined_plot
+
+print(combined_plot) 
 
 dev.off()
 
@@ -2196,23 +2198,22 @@ fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black"
 #
 # Visualize the PCA with site as a grouping factor
 #
-my.col.var <- c(  "#F4B400", "#A347F3","#4A90E2", "#66A035", "#E63978") #set colour palette
+my.col.var <- c( "#66A035", "#4A90E2", "#F4B400", "#A347F3",  "#E63978") #set colour palette
 #
 #
 #
 tiff("PCA_LP3+_mesocosm_BW.tiff", units="in", width=8, height=6, res=300)
 
 PCA_fig_bw <- fviz_pca_biplot(pca_result, 
-                           col.ind = dat_bw$site,
+                           col.ind = dat_bw$site_new,
                            addEllipses = TRUE, label = "var",
-                           pointsize=3,
-                           alpha.ind=0.5,
-                           mean.point=F,
-                           palette=my.col.var,
-                           col.var = "black", repel = T, labelsize=3,
+                           pointsize=3, alpha.ind=0.7,
+                           mean.point=F, palette=my.col.var,
+                           col.var = "black", repel = T, labelsize=4,
                            legend.title = " ") + ggtitle(NULL) +
-                           xlab("PC1 (35.6%)") +   ylab("PC2 (17.7%)") + #update these values if you change pca
-                           theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.text = element_text(color = "black"), axis.title = element_text(color = "black"), legend.position = c(.105, .22) )
+                           xlab("PC1 (35.2%)") +   ylab("PC2 (18.4%)") + #update these values if you change pca    
+                           scale_shape_manual(values = c(16, 17, 15, 18, 8)) +
+                           theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.text = element_text(color = "black", size=14), axis.title = element_text(color = "black"), legend.position = c(.105, .22), legend.text = element_text(size = 14), axis.text.x = element_text(size = 14), axis.title.x = element_text(size = 14), axis.title.y = element_text(size = 14) )
 PCA_fig_bw
 
 dev.off()
