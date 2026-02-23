@@ -19,6 +19,7 @@ library(lmerTest)
 library(emmeans)
 library(scales)
 library(patchwork)
+library(corrplot)
 #
 #
 #
@@ -542,6 +543,7 @@ mean(subset(dat, site == "TP-A" & C.W!="BL" & C.W!="BW")$Ca_mg_l, na.rm = TRUE)
 ## bin water summary statistics
 dat_bw <- subset(dat, C.W=="BW") # subset bin water
 mean(dat_bw$PO4_mg_l)
+mean(dat_bw$PO4_P_mg_l)
 #
 mean(subset(dat_bw, site == "TP-A")$Ca_mg_l, na.rm = TRUE) #353.7434
 #
@@ -750,17 +752,20 @@ F_time <- ggplot(subset(dat, !is.na(C.W)& C.W != "BW" & C.W != "4_1"), aes(x = a
 F_time
 
 
-F_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = F_mg_l, shape = Group, fill =site)) +
+F_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = F_mg_l, shape = Group, fill =site_new)) +
   stat_summary(fun.data = "mean_se", geom = "errorbar", position = position_dodge(width = 0.8), 
                width = 0, alpha=0.6, color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
     labs(y = expression(F^"\u2212"*" (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
-  scale_fill_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") ) + guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black")))
+  scale_fill_manual(values = c("Rosedene2" = "#A347F3", "Rosedene1" = "#F4B400", "Wrights" = "#E63978",  "Railway View" = "#4A90E2",  "Pymoor" ="#66A035") ) + guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black")))
 F_by_site_treatment
+
+
+
 
 
 F_by_site <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = F_mg_l, colour =site_new)) +
@@ -783,7 +788,7 @@ F_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"),
   labs(y = expression(F^"\u2212"*" (mg L"^"-1"*")")) +
    # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
     theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
     scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -827,16 +832,16 @@ Cl_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x 
   scale_colour_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") ) 
 Cl_time2
 
-Cl_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = Cl_mg_l, shape = Group, fill =site)) +
+Cl_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = Cl_mg_l, shape = Group, fill =site_new)) +
   stat_summary(fun.data = "mean_se", geom = "errorbar", position = position_dodge(width = 0.8), 
                width = 0, alpha=0.6,  color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression(Cl^"\u2212"*" (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
-  scale_fill_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") ) + guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black")))
+  scale_fill_manual(values = c("Rosedene2" = "#A347F3", "Rosedene1" = "#F4B400", "Wrights" = "#E63978",  "Railway View" = "#4A90E2",  "Pymoor" ="#66A035") ) + guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black")))
 Cl_by_site_treatment
 
 
@@ -846,7 +851,7 @@ Cl_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   labs(y = expression(Cl^"\u2212"*" (mg L"^"-1"*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1110,7 +1115,7 @@ SO4_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression(SO[4]^"-" ~ "(mg L"^-1*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1171,7 +1176,7 @@ Na_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   labs(y = expression("Na (mg L"^"-1"*")")) +
   # scale_x_discrete(labels = c("Baseline", "Cycle 1\nWeek 1", "Cycle 1\nWeek 2", "Cycle 3\nWeek 1", "Cycle 5\nWeek 2")) +
   #scale_x_discrete(labels = c("Baseline", "39", "40", "43", "47")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1294,7 +1299,7 @@ Mg_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression("Mg (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1334,24 +1339,24 @@ K_time2 <- ggplot(subset(dat, !is.na(C.W )& C.W != "BW" & C.W != "4_1"), aes(x =
 K_time2
 
 
-K_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = K_mg_l, shape = Group, fill =site)) +
+K_by_site_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = K_mg_l, shape = Group, fill =site_new)) +
   stat_summary(fun.data = "mean_se", geom = "errorbar", position = position_dodge(width = 0.8), 
                width = 0, alpha=0.6, color = "black") +
   stat_summary(fun = "mean", geom = "point", position = position_dodge(width = 0.8),  alpha=0.6, size = 3) +
   labs(y = expression("K (mg L"^"-1"*")")) +
   #scale_y_log10() + 
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_shape_manual(values = c("Conventional drainage" = 21, "Fluctuating" = 24, "Rewetted" = 22)) +
-  scale_fill_manual(values = c("RG-R8" = "#A347F3", "RG-PEF" = "#F4B400", "WF-A" = "#E63978",  "RV" = "#4A90E2",  "TP-A" ="#66A035") ) + guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black")))
+  scale_fill_manual(values = c("Rosedene2" = "#A347F3", "Rosedene1" = "#F4B400", "Wrights" = "#E63978",  "Railway View" = "#4A90E2",  "Pymoor" ="#66A035") ) + guides(fill = guide_legend(override.aes = list(shape = 21, size = 4, color = "black")))
 K_by_site_treatment
 
 K_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1"), aes(x = as.numeric(Week.no.), y = K_mg_l,  fill =Group)) +
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression("K (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1409,7 +1414,7 @@ Ca_by_treatment <- ggplot(subset(dat, !is.na(C.W ) & C.W != "BW" & C.W != "4_1")
   stat_summary( fun = mean, geom = "line", position = position_dodge(width = 0.5),  linewidth = 0.8, aes(color = Group) ) +
   stat_summary(fun.data = "mean_se", geom = "pointrange", position = position_dodge(width = 0.5),  alpha=0.6, size=0.7, shape= 21, colour="black") +
   labs(y = expression("Ca (mg L"^"-1"*")")) +
-  scale_x_continuous( breaks = c(37, 39, 40, 43, 47),  labels = c("0", "2", "3", "6", "10")) +
+  scale_x_continuous( breaks = c(37, 39, 40, 41, 42, 43, 47),  labels = c("BL", "1", "2", "3", "4", "5" , "9")) +
   theme_minimal() +
   theme( axis.title.x = element_blank(), legend.title = element_blank(), axis.line = element_line(colour = "black"),    panel.grid = element_blank(), axis.ticks = element_line(colour = "black"), axis.text = element_text(size = 10.5), axis.title = element_text(size = 12)) +
   scale_fill_manual(values = c("#FF8A65",  "#81C784", "#7C9DBF"))
@@ -1537,7 +1542,7 @@ dev.off()
 ########################################################################################
 #### Treatment AND site time series ####
 # for publication 
-jpeg("LP3+_mesocosm_site_treatment_timeseries_K_Cl_F.jpeg", units="in", width=8, height=10, res=250)
+jpeg("LP3+_mesocosm_site_treatment_timeseries_K_Cl_F.jpeg", units="in", width=8.5, height=10, res=250)
 combine1 <- ggarrange(K_by_site_treatment , Cl_by_site_treatment, F_by_site_treatment,     
                       ncol = 1, nrow = 3, align="hv",common.legend = T, labels = c("(a)", "(b)", "(c)"))  
 combine1
@@ -1705,13 +1710,13 @@ colnames(dat)
 #### pH ####
 #tiff("pH_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-pH <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = pH, fill=site)) + 
+pH <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y = pH, fill=site_new)) + 
   geom_boxplot(width = 0.9, alpha=0.7) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs( y = "pH",  x = NULL ) +
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
-  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "RV" = "#A2D2FF",  "TP-A" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=13), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 pH
 
 #dev.off()
@@ -1720,23 +1725,23 @@ pH
 
 #tiff("EC_LP3+_mesocosm_BW.tiff", units="in", width=6.5, height=4, res=300)
 
-EC <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = EC_us_cm, fill=site)) + 
+EC <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y = EC_us_cm, fill=site_new)) + 
   geom_boxplot(width = 0.9, alpha=0.7) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(  y = expression("EC (" * mu * "S cm"^"-1" * ")"),  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "RV" = "#A2D2FF",  "TP-A" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 EC
 
 #dev.off()
 
-#### TOC ####
-TOC <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site, y = TOC_mg_l, fill=site)) + 
+#### DOC ####
+TOC <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y = TOC_mg_l, fill=site_new)) + 
   geom_boxplot(width = 0.9, alpha=0.7) + 
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("DOC (mg L"^-1*")"),  x = NULL,   fill = "Land Use" ) +
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("RG-R8" = "#D8B4F8", "RG-PEF" = "#FDE68A", "WF-A" = "#F8C8DC",  "RV" = "#A2D2FF",  "TP-A" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, linewidth = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11) , axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +  scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 TOC
 
 #### Fluoride ####
@@ -1961,7 +1966,7 @@ P <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =P_mg_l, fill=si
   labs(y = expression(P ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
   #scale_y_log10() + 
   theme_minimal() + # Clean theme
-  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=13), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 P
 
 #dev.off()
@@ -1976,7 +1981,7 @@ Si <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Si_mg_l, fill=
   labs(y = expression(Si ~ "(mg L"^-1*")"), x = NULL, fill = "Land Use") + 
  # scale_y_log10() + 
   theme_minimal() + # Clean theme
-  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=13), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Si
 
 #dev.off()
@@ -1993,7 +1998,7 @@ Al <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Al_ug_l, fill=
   theme_minimal() + # Clean theme
   scale_y_log10() + 
   #scale_y_continuous(trans = 'pseudo_log') +
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Al
 
 #dev.off()
@@ -2013,7 +2018,7 @@ Cr <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Cr_ug_l, fill=
   theme_minimal() + # Clean theme
   #scale_y_log10() + 
   scale_y_continuous(trans = 'pseudo_log') +
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Cr
 
 
@@ -2026,7 +2031,7 @@ Cu <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Cu_ug_l, fill=
   #geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Cu (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Cu
 
 #dev.off()
@@ -2043,7 +2048,7 @@ Fe <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Fe_ug_l, fill=
   theme_minimal() + # Clean theme
   scale_y_log10() + 
   #scale_y_continuous(trans = 'pseudo_log') +
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Fe
 
 #dev.off()
@@ -2077,7 +2082,7 @@ Mn <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Mn_ug_l, fill=
   labs(y = expression("Mn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   scale_y_log10() + 
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Mn
 
 #dev.off()
@@ -2092,7 +2097,7 @@ Ni <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Ni_ug_l, fill=
  # geom_jitter(alpha=0.5, size = 3, width = 0.2) + # Jitter points to show individual observations
   labs(y = expression("Ni (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=11), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none",  axis.title = element_text(size = 14), axis.text.x = element_blank(), axis.text.y = element_text(size=11), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Ni
 
 #dev.off()
@@ -2111,7 +2116,7 @@ Zn <- ggplot(subset(dat, Cycle.no. == "BW"), aes(x = site_new, y =Zn_ug_l, fill=
   labs(y = expression("Zn (µg L"^-1*")"), x = NULL, fill = "Land Use") + 
   theme_minimal() + # Clean theme
   scale_y_log10() + 
-  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.text.y = element_text(size=12), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
+  theme( panel.border = element_rect(color = "black", fill = NA, size = 1), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), legend.position = "none", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.text.y = element_text(size=13), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")    ) + scale_fill_manual(values = c("Rosedene2" = "#D8B4F8", "Rosedene1" = "#FDE68A", "Wrights" = "#F8C8DC",  "Railway View" = "#A2D2FF",  "Pymoor" ="#B5E48C") )
 Zn
 
 #dev.off()
@@ -2161,7 +2166,7 @@ dev.off()
 
 #### combine the BW plots that DO NOThave tap water comparison data ####
 
-jpeg("LP3+_mesocosm_BW_combined_other.jpeg", units="in", width=11, height=7, res=200)
+jpeg("LP3+_mesocosm_BW_combined_other.jpeg", units="in", width=11, height=8, res=200)
 
 combine <- ggarrange(Al, Cu, Cr, TOC, EC, 
                      Fe, Mn, Ni, P, 
@@ -2432,7 +2437,8 @@ dat_numeric <- dat_numeric %>% select(where(~ !all(is.na(.))))
 #
 # Drop non-relevant columns
 dat_numeric <- dat_numeric %>% 
-  select(-mesocosmID,  -As_ug_l, -Cd_ug_l, -Pb_ug_l, -Li_mg_l)
+  select(-mesocosmID,  -As_ug_l, -Cd_ug_l, -Pb_ug_l, -Li_mg_l, -Fe_P_ratio, -NO3_N_mg_l, -NH4_N_mg_l, -PO4_P_mg_l, -NO2_N_mg_l, -SO4_S_mg_l )
+#
 #
 #
 # Remove units from column names
