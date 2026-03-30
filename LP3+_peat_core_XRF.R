@@ -13,6 +13,10 @@ library(vegan)
 library(Hmisc)
 library(corrplot)
 library(factoextra)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(ggpubr)
 #
 #
 #
@@ -242,10 +246,10 @@ tiff("LOI_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 LOI_all <- ggplot(subset(dat, !is.na(site)), aes(y = percent_loi, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
     geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
-  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "#6c8854",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "#816c94",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
    labs(y = "LOI (%)", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
@@ -304,20 +308,21 @@ Pb_MOS
 #### total heavy metals ####
 #
 #
-tiff("Total_heavy_metals_LP3+_peat_cores.tiff", units="in", width=8, height=4.5, res=300)
+tiff("Total_heavy_metals_LP3+_peat_cores_4000.tiff", units="in", width=8, height=4.5, res=300)
 #
-total_metals <- ggplot(subset(dat, !is.na(site)),  aes(y = total_metals_ug_g, x = depth_cm, shape=peat)) +
+# 
+total_metals <- ggplot(subset(dat, !is.na(site) & site != "RV"),  aes(y = total_metals_ug_g, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
-  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "#6c8854",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "#816c94",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Total metals", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   #scale_y_log10() +
-  scale_y_continuous(breaks = seq(0, 8000, by = 4000)) +
+  scale_y_continuous(breaks = seq(0, 4000, by = 2000)) +
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
@@ -453,10 +458,10 @@ tiff("P_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 P_all <- ggplot(subset(dat, !is.na(site)), aes(y = P_mg_g, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
-  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "#6c8854",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "#816c94",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "P", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
@@ -477,10 +482,10 @@ tiff("K_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 K_all <- ggplot(subset(dat, !is.na(site)), aes(y = K_mg_g, x = depth_cm, shape=peat)) + 
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
-  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "#6c8854",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "#816c94",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
-  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "#978a52",linetype = "solid", linewidth = 2 , alpha=0.5 ) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "K", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
@@ -659,7 +664,7 @@ dev.off()
 #
 ##################################################################################
 #
-#### Ca:Mg - indicates ombrotrophic ocnditions when <1 ####
+#### Ca:Mg - indicates ombrotrophic conditions when <1 ####
 #
 tiff("Ca_Mg_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 #
@@ -681,6 +686,42 @@ dev.off()
 #
 #
 ombro <- subset(dat, Ca_Mg <1)
+
+#################################################################################
+#### Comparing to ambient background concentrations ####
+
+pb_exceed <- dat %>%
+  filter(!is.na(site), !is.na(Pb_ug_g)) %>%
+  group_by(site) %>%
+  summarise(
+    n_exceed = sum(Pb_ug_g > 301),
+    n_total = n(),
+    prop_exceed = n_exceed / n_total   )
+
+hg_exceed <- dat %>%
+  filter(!is.na(site), !is.na(Hg_ug_g)) %>%
+  group_by(site) %>%
+  summarise(
+    n_exceed = sum(Hg_ug_g > 1.1),
+    n_total = n(),
+    prop_exceed = n_exceed / n_total   )
+
+cu_exceed <- dat %>%
+  filter(!is.na(site), !is.na(Cu_ug_g)) %>%
+  group_by(site) %>%
+  summarise(
+    n_exceed = sum(Cu_ug_g > 16),
+    n_total = n(),
+    prop_exceed = n_exceed / n_total   )
+
+zn_exceed <- dat %>%
+  filter(!is.na(site), !is.na(Zn_ug_g)) %>%
+  group_by(site) %>%
+  summarise(
+    n_exceed = sum(Zn_ug_g > 53),
+    n_total = n(),
+    prop_exceed = n_exceed / n_total   )
+
 #################################################################################
 #### Plots by site ####
 #
@@ -776,7 +817,28 @@ pca_result <- prcomp(dat_num, center = TRUE, scale. = TRUE)
 summary(pca_result)
 #
 # Scree plot showing variance explained by each PC
-fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black") 
+variance <- fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black") 
+#
+# Scree plot showing eigenvalues
+eigen <- fviz_eig(pca_result, choice = "eigenvalue", addlabels = TRUE, barfill = "steelblue", barcolor = "black")
+#
+#combine variance and eigen plots
+jpeg("PCA_scree_plot.jpg", units="in", width=7, height=8, res=300)
+ggarrange(variance, eigen, labels = c("A", "B"),   ncol = 1, nrow = 2)
+dev.off()
+#
+# Loadings (variables × PCs)
+loadings <- pca_result$rotation
+#
+# Variance explained
+var_explained <- (pca_result$sdev^2) / sum(pca_result$sdev^2)
+#
+# Combine into a table
+loadings_df <- as.data.frame(loadings)
+loadings_df$Variable <- rownames(loadings_df)
+#
+write.csv(loadings_df, "PCA_loadings.csv", row.names = FALSE)
+#
 #
 #
 # Visualize the PCA with site or land-use as a grouping factor
@@ -872,11 +934,17 @@ dat_matrix <- rcorr(as.matrix(dat_numeric),  type = "spearman")
 cor_mat <- dat_matrix$r
 p_mat <- dat_matrix$P
 #
+# Apply FDR (false discovery rate) correction
+p_adjusted_fdr <- matrix(p.adjust(as.vector(p_mat), method = "bonferroni"), 
+                         ncol = ncol(p_mat), nrow = nrow(p_mat))
+colnames(p_adjusted_fdr) <- colnames(p_mat)
+rownames(p_adjusted_fdr) <- rownames(p_mat)
+#
 #
 #
 # Make correlation plot
 corrplot(cor_mat,  type="upper", diag=FALSE, tl.col = "black", tl.cex = 0.9,
-         p.mat = p_mat, sig.level = 0.05, insig = "blank") 
+         p.mat = p_adjusted_fdr, sig.level = 0.05, insig = "blank") # doesnt seem to change with correction...
 #
 #
 jpeg("LP3+_peat_core_corrplot_spearman.jpeg", units="in", width=6, height=6, res=300)
@@ -884,8 +952,57 @@ jpeg("LP3+_peat_core_corrplot_spearman.jpeg", units="in", width=6, height=6, res
 corrplot(cor_mat, method="color", type="upper", order="hclust", 
          addCoef.col = "black", # Add coefficient of correlation
          tl.col="black", tl.srt=45, #Text label color and rotation
-         p.mat = p_mat, sig.level = 0.05, insig = "blank", 
+         p.mat = p_adjusted_fdr, sig.level = 0.05, insig = "blank", 
          # hide correlation coefficient on the principal diagonal
          diag=FALSE,  number.cex = 0.8 )
 
 dev.off()
+
+######################################################################
+#### Lmer for LOI differences ####
+#
+# I want to determine any statisitcal differences in LOI content of the top 30 cm between sites. 
+#
+# first, subset the top 30cm for each site
+dat_top30 <- subset(dat, depth_cm <= 30)
+#
+# check
+range(dat_top30$depth_cm, na.rm = TRUE) #1-30
+#
+# check if any sites have less than 30 cm depth-- SW = 28, ND = 28, should be fine
+max_depth_per_site <- dat_top30 %>%
+  group_by(site) %>%
+  summarise(max_depth = max(depth_cm, na.rm = TRUE))
+#
+#  next, calculate average LOI per site for the top 30 cm
+dat_top30_site <- dat_top30 %>%
+  group_by(site, land_use, peat) %>%
+  summarise(mean_LOI = mean(percent_loi, na.rm = TRUE), 
+            sd_LOI   = sd(percent_loi, na.rm = TRUE) )
+#
+# average per land use
+dat_top30_land_use <- dat_top30 %>%
+  group_by(land_use) %>%
+  summarise(
+    mean_LOI = mean(percent_loi, na.rm = TRUE),
+    sd_LOI   = sd(percent_loi, na.rm = TRUE)  )
+#
+# can't run an lm or lmm on this data bc the samples are not independant... so can only compare means :(
+# but you can look at land use differences with site as a random factor
+loi_model <- lmer(percent_loi ~ land_use + (1 | site), data = dat_top30)
+summary(loi_model)
+#
+# Estimated marginal means for land_use
+emmeans(loi_model, ~ land_use)
+#
+# Pairwise comparisons
+pairs(emm, adjust = "fdr")  #try tukey, sidak, fdr none sig
+#
+# try adding peat type
+loi_model2 <- lmer(percent_loi ~ land_use*peat + (1 | site), data = dat_top30)
+summary(loi_model2) # because peat type isn't represented in each land use this doesnt work
+
+
+
+
+

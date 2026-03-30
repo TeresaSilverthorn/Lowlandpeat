@@ -2446,6 +2446,7 @@ colnames(dat_numeric) <- gsub("_ug_l|_mg_l|_us_cm", "", colnames(dat_numeric))
 #
 # Update labels
 names(dat_numeric)[names(dat_numeric) == 'NP_ratio'] <- 'N:P'
+names(dat_numeric)[names(dat_numeric) == 'TOC'] <- 'DOC'
 #
 # make data frame into matrix
 dat_matrix <- rcorr(as.matrix(dat_numeric),  type = "spearman")
@@ -2459,7 +2460,7 @@ jpeg("LP3+_mesocosm_BW_corrplot_spearman.jpeg", units="in", width=6, height=5.5,
 corrplot(cor_mat,  type="upper", diag=FALSE, tl.col = "black", tl.cex = 0.9, order = "hclust", tl.srt=45, p.mat = p_mat, sig.level = 0.05, insig = "blank") 
 
 dev.off()
-
+#
 
 
 
