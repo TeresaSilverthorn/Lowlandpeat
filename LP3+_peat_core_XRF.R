@@ -17,6 +17,8 @@ library(lme4)
 library(lmerTest)
 library(emmeans)
 library(ggpubr)
+library(geosphere)
+library(glmmTMB)
 #
 #
 #
@@ -217,6 +219,14 @@ dat$total_metals_ug_g <- dat$Zn_ug_g + dat$Pb_ug_g + dat$Hg_ug_g + dat$Cu_ug_g
 # Make new column for Ca:Mg molar ratio, which indicates ombrotrophic conditions if <1
 dat$Ca_Mg <- (dat$Ca_mg_g/40.078) / (dat$Mg_mg_g/24.305) 
 #
+#
+# add the coordinates
+coords <- read.csv(  "C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Fieldwork/LP3+ peat coring site codes 2026-04-13.csv", fileEncoding = "Windows-1252" ) %>%
+  select(site, lat, lon)
+#
+dat <- dat %>%
+  left_join(coords, by = "site")
+#
 ## Save as csv
 write.csv(dat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/LP3+peatcore_XRF_LOI_clean.csv")
 #
@@ -392,7 +402,7 @@ Fe_all <- ggplot(subset(dat, !is.na(site)), aes(y = Fe_mg_g, x = depth_cm, shape
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=6, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Fe_all
 #
 dev.off()
@@ -412,7 +422,7 @@ Cu_all <- ggplot(subset(dat, !is.na(site)), aes(y = Cu_ug_g, x = depth_cm, shape
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Cu_all
 #
 dev.off()
@@ -643,6 +653,27 @@ dev.off()
 #
 #### Rb - indicates dust loading ####
 #
+dat <- dat %>% 
+  mutate( Cu_Rb = Cu_ug_g /Rb_ug_g , 
+          Cu_Rb = ifelse(is.finite(Cu_Rb), Cu_Rb, NA))
+
+dat <- dat %>% 
+  mutate( Fe_Rb = Fe_mg_g*1000 / Rb_ug_g, 
+          Fe_Rb = ifelse(is.finite(Fe_Rb), Fe_Rb, NA))
+
+dat <- dat %>%
+  mutate(Pb_Rb = Pb_ug_g / Rb_ug_g,
+         Pb_Rb = ifelse(is.finite(Pb_Rb), Pb_Rb, NA))
+
+dat <- dat %>%
+  mutate(As_Rb = As_ug_g / Rb_ug_g,
+         As_Rb = ifelse(is.finite(As_Rb), As_Rb, NA))
+
+dat <- dat %>%
+  mutate(Zn_Rb = Zn_ug_g / Rb_ug_g,
+         Zn_Rb = ifelse(is.finite(Zn_Rb), Zn_Rb, NA))
+
+#
 #
 tiff("Rb_LP3+_peat_cores_all.tiff", units="in",  width=8, height=4.5, res=300)
 #
@@ -656,12 +687,79 @@ Rb_all <- ggplot(subset(dat, !is.na(site)), aes(y = Rb_ug_g, x = depth_cm, shape
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Rb_all
 #
 dev.off()
 #
 #
+tiff("ZnRb_LP3+_peat_cores_all.tiff", units="in",  width=8, height=4.5, res=300)
+
+Zn_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Zn_Rb, x = depth_cm, shape=peat)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  scale_shape_manual(values=c( 21, 19)) +
+  labs(y = "Zn:Rb", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  scale_y_continuous(breaks = seq(0, 400, by = 200)) +
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
+  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+Zn_Rb_plot
+
+dev.off()
+
+
+tiff("CuRb_LP3+_peat_cores_all.tiff", units="in",  width=8, height=4.5, res=300)
+
+Cu_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Cu_Rb, x = depth_cm, shape=peat)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  scale_shape_manual(values=c( 21, 19)) +
+  labs(y = "Cu:Rb", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  scale_y_continuous(breaks = seq(0, 100, by = 50)) +
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
+  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+Cu_Rb_plot
+
+dev.off()
+
+
+tiff("PbRb_LP3+_peat_cores_all.tiff", units="in",  width=8, height=4.5, res=300)
+
+Pb_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Pb_Rb, x = depth_cm, shape=peat)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  scale_shape_manual(values=c( 21, 19)) +
+  labs(y = "Pb:Rb", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  scale_y_continuous( breaks = seq(0, 400, by = 200)) + 
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
+  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) ) # override alpha 1 for legend 
+Pb_Rb_plot
+
+dev.off()
+
+As_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = As_Rb, x = depth_cm, shape=peat)) + 
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  scale_shape_manual(values=c( 21, 19)) +
+  labs(y = "As:Rb", x = "Depth (cm)") +
+  scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
+  #scale_y_continuous( breaks = seq(0, 500, by = 250)) + 
+  coord_flip() +  # Rotate the plot 90 degrees counterclockwise
+  facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
+  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) ) # override alpha 1 for legend 
+As_Rb_plot
+
+
 ##################################################################################
 #
 #### Ca:Mg - indicates ombrotrophic conditions when <1 ####
@@ -817,10 +915,63 @@ pca_result <- prcomp(dat_num, center = TRUE, scale. = TRUE)
 summary(pca_result)
 #
 # Scree plot showing variance explained by each PC
-variance <- fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black") 
+variance <- fviz_eig(pca_result, addlabels = TRUE, barfill = "steelblue", barcolor = "black") +  labs(title = NULL) + theme(panel.grid = element_blank(), axis.line = element_line(colour = "black") ) +  coord_cartesian(ylim = c(0, 75)) +  labs( x = "Dimensions", y = "% explained variance", colour = NULL ) 
 #
 # Scree plot showing eigenvalues
-eigen <- fviz_eig(pca_result, choice = "eigenvalue", addlabels = TRUE, barfill = "steelblue", barcolor = "black")
+eigen <- fviz_eig(pca_result, choice = "eigenvalue", addlabels = TRUE, barfill = "steelblue", barcolor = "black") +  labs(title = NULL) +theme(panel.grid = element_blank(), axis.line = element_line(colour = "black") ) +  coord_cartesian(ylim = c(0, 6))
+
+
+
+# Eigenvalues
+eig_vals <- pca_result$sdev^2
+p <- length(eig_vals)
+
+# Broken-stick model
+broken_stick <- sapply(1:p, function(k) {
+  sum(1 / (k:p)) / p
+})
+
+# Convert to same scale as eigenvalues
+broken_stick <- broken_stick * sum(eig_vals)
+
+# Plot scree
+plot(eig_vals, type = "b", pch = 19,
+     xlab = "Principal Component",
+     ylab = "Eigenvalue",
+     main = "Scree Plot with Broken-Stick Threshold")
+
+# Add broken-stick curve
+lines(broken_stick, col = "red", lwd = 2)
+
+legend("topright", legend = c("Eigenvalues", "Broken-stick"),
+       col = c("black", "red"), lty = 1, pch = c(19, NA))
+#
+#
+# ggplot version (Rich's is in base R)
+#
+dat_num <- data.frame(
+  PC = 1:length(eig_vals),
+  Eigenvalue = eig_vals,
+  BrokenStick = broken_stick)
+#
+# ggplot scree plot
+broken_stick <- ggplot(dat_num, aes(x = PC)) +
+  geom_line(aes(y = Eigenvalue, colour = "Eigenvalues"), linewidth = 1) +
+  geom_point(aes(y = Eigenvalue, colour = "Eigenvalues"), size = 2) +
+  geom_line(aes(y = BrokenStick, colour = "Broken-stick"), linewidth = 1) +
+  scale_colour_manual(values = c("Eigenvalues" = "black", "Broken-stick" = "red")) +
+  labs( x = "Dimensions", y = "Eigenvalue", colour = NULL ) +
+  theme_minimal()  +  theme(panel.grid = element_blank(), axis.line = element_line(colour = "black"), legend.position = c(0.9, 0.9) ) +  scale_x_continuous(breaks = seq_along(pca_result$sdev))
+broken_stick
+#
+#
+#
+#
+#combine variance and eigen plots
+jpeg("PCA_scree_plot2.jpg", units="in", width=7, height=8, res=300)
+ggarrange(variance, eigen, broken_stick, labels = c("A", "B", "C"),   ncol = 1, nrow = 3)
+dev.off()
+#
 #
 #combine variance and eigen plots
 jpeg("PCA_scree_plot.jpg", units="in", width=7, height=8, res=300)
@@ -839,6 +990,42 @@ loadings_df$Variable <- rownames(loadings_df)
 #
 write.csv(loadings_df, "PCA_loadings.csv", row.names = FALSE)
 #
+#############################
+#### code from Rich ####
+#The eigenvalues expected  under a random model (Broken Stick) are optionally plotted - eigenvalues under this curve may  represent non-significant components (Jackson 1993)." This can highlight the number of components needed to account for variation, example code for scree plot with Broken stick threshold below.... and happy to be told I know and done that already...... 🙂
+#
+#PCA prcomp is great actually based on Single Value Decomp - so yes only z-score standardised once....
+
+# PCA
+data(iris)
+iris_numeric <- iris[, -5]
+
+pca <- prcomp(iris_numeric, center = TRUE, scale. = TRUE)
+
+# Eigenvalues
+eig_vals <- pca$sdev^2
+p <- length(eig_vals)
+
+# Broken-stick model
+broken_stick <- sapply(1:p, function(k) {
+  sum(1 / (k:p)) / p
+})
+
+# Convert to same scale as eigenvalues
+broken_stick <- broken_stick * sum(eig_vals)
+
+# Plot scree
+plot(eig_vals, type = "b", pch = 19,
+     xlab = "Principal Component",
+     ylab = "Eigenvalue",
+     main = "Scree Plot with Broken-Stick Threshold")
+
+# Add broken-stick curve
+lines(broken_stick, col = "red", lwd = 2)
+
+legend("topright", legend = c("Eigenvalues", "Broken-stick"),
+       col = c("black", "red"), lty = 1, pch = c(19, NA))
+#############
 #
 #
 # Visualize the PCA with site or land-use as a grouping factor
@@ -940,6 +1127,12 @@ p_adjusted_fdr <- matrix(p.adjust(as.vector(p_mat), method = "bonferroni"),
 colnames(p_adjusted_fdr) <- colnames(p_mat)
 rownames(p_adjusted_fdr) <- rownames(p_mat)
 #
+write.csv(p_adjusted_fdr, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/corrplot_p_adjusted_fdr.csv")
+#
+write.csv(p_mat, "C:/Users/teres/Documents/LowlandPeat3/LP3+ Peat coring/Lab work/corrplot_p_unadjusted.csv")
+#
+cor(dat$depth_cm, dat$Cu, use = "complete.obs", method = "spearman")
+cor.test(dat$depth_cm, dat$Cu, method = "spearman", exact = FALSE)
 #
 #
 # Make correlation plot
@@ -987,13 +1180,29 @@ dat_top30_land_use <- dat_top30 %>%
     mean_LOI = mean(percent_loi, na.rm = TRUE),
     sd_LOI   = sd(percent_loi, na.rm = TRUE)  )
 #
+# convert % to proportion
+dat_top30$loi_prop <- dat_top30$percent_loi / 100
+#
 # can't run an lm or lmm on this data bc the samples are not independant... so can only compare means :(
 # but you can look at land use differences with site as a random factor
 loi_model <- lmer(percent_loi ~ land_use + (1 | site), data = dat_top30)
 summary(loi_model)
+anova(loi_model)
+plot(loi_model)
+qqline(resid(loi_model), col = "red")
+# lmm isn't the best for percentage data, use glmm
+# adjust 100s to make them a bit smaller
+n <- nrow(dat_top30)
+dat_top30$loi_prop_adj <- (dat_top30$loi_prop * (n - 1) + 0.5) / n
+#
+# run beta glmm
+model_beta <- glmmTMB(loi_prop_adj ~ land_use + (1 | site),  family = beta_family(link = "logit"),  data = dat_top30)
+#
+
 #
 # Estimated marginal means for land_use
 emmeans(loi_model, ~ land_use)
+pairs(emmeans(loi_model, ~ land_use))
 #
 # Pairwise comparisons
 pairs(emm, adjust = "fdr")  #try tukey, sidak, fdr none sig
@@ -1001,8 +1210,68 @@ pairs(emm, adjust = "fdr")  #try tukey, sidak, fdr none sig
 # try adding peat type
 loi_model2 <- lmer(percent_loi ~ land_use*peat + (1 | site), data = dat_top30)
 summary(loi_model2) # because peat type isn't represented in each land use this doesnt work
+#
+# Other variables
+cu_model <- lmer(Cu_ug_g ~ land_use + (1 | site), data = dat)
+summary(cu_model)
+anova(cu_model)
+emmeans(cu_model, ~ land_use*peat)
+pairs(emmeans(cu_model, ~ land_use*peat))
+#
+fe_model <- lmer(Fe_mg_g ~ land_use + (1 | site), data = dat)
+summary(fe_model)
+anova(fe_model)
+emmeans(fe_model, ~ land_use)
+pairs(emmeans(fe_model, ~ land_use))
+#
+pb_model <- lmer(Pb_ug_g ~ land_use + (1 | site), data = dat)
+summary(pb_model)
+anova(pb_model)
+emmeans(pb_model, ~ land_use)
+pairs(emmeans(pb_model, ~ land_use))
+#
+hg_model <- lmer(Hg_ug_g ~ land_use + (1 | site), data = dat)
+summary(hg_model)
+anova(hg_model)
+emmeans(hg_model, ~ land_use)
+pairs(emmeans(hg_model, ~ land_use))
+#
+zn_model <- lmer(Zn_ug_g ~ land_use + (1 | site), data = dat)
+summary(zn_model)
+anova(zn_model)
+emmeans(zn_model, ~ land_use)
+pairs(emmeans(zn_model, ~ land_use))
+#
+k_model <- lmer(K_mg_g ~ land_use + (1 | site), data = dat)
+summary(k_model)
+anova(k_model)
+emmeans(k_model, ~ land_use)
+pairs(emmeans(k_model, ~ land_use))
+#
+p_model <- lmer(P_mg_g ~ land_use + (1 | site), data = dat)
+anova(p_model)
+summary(p_model)
+emmeans(p_model, ~ land_use)
+pairs(emmeans(p_model, ~ land_use))
+#
+#
+#
+#
+#
+############
+### distance from Manchester ####
 
 
+manchester <- data.frame(  lon = -2.2426,  lat = 53.4808)
 
+dat$dist_manchester_km <- distHaversine(  cbind(dat$lon, dat$lat),  cbind(manchester$lon, manchester$lat)) / 1000
 
+model_pb <- lm(Pb_ug_g ~ dist_manchester_km, data = dat)
+summary(model_pb)
 
+model_pb <- lmer(log(Pb_ug_g) ~ dist_manchester_km + (1|site), data = dat)
+summary(model_pb)
+
+ggplot(dat, aes(dist_manchester_km, log(Pb_ug_g))) +
+  geom_point() +
+  geom_smooth(method = "lm")
