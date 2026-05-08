@@ -244,8 +244,7 @@ summary_loi_by_site <- dat %>% # mean and min LOI by site
   group_by(site) %>%
   summarise(
     min_percent_loi = min(percent_loi, na.rm = TRUE),
-    mean_percent_loi = mean(percent_loi, na.rm = TRUE),
-  )
+    mean_percent_loi = mean(percent_loi, na.rm = TRUE),  )
 #
 #
 #### plot LOI ####
@@ -348,6 +347,10 @@ tiff("Pb_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 Pb_all <- ggplot(subset(dat, !is.na(site)),  aes(y = Pb_ug_g, x = depth_cm, shape=peat)) +
 geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Pb", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
@@ -355,7 +358,7 @@ geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(f
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )
 Pb_all
 #
 dev.off()
@@ -372,6 +375,10 @@ tiff("Zn_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 Zn_all <- ggplot(subset(dat, !is.na(site)), aes(y = Zn_ug_g, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Zn", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
@@ -379,7 +386,7 @@ Zn_all <- ggplot(subset(dat, !is.na(site)), aes(y = Zn_ug_g, x = depth_cm, shape
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )
 Zn_all
 #
 dev.off()
@@ -396,13 +403,17 @@ tiff("Fe_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 Fe_all <- ggplot(subset(dat, !is.na(site)), aes(y = Fe_mg_g, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Fe", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=6, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Fe_all
 #
 dev.off()
@@ -416,13 +427,17 @@ tiff("Cu_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 Cu_all <- ggplot(subset(dat, !is.na(site)), aes(y = Cu_ug_g, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Cu", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Cu_all
 #
 dev.off()
@@ -436,13 +451,17 @@ tiff("Hg_LP3+_peat_cores_all.tiff", units="in", width=8, height=4.5, res=300)
 Hg_all <- ggplot(subset(dat, !is.na(site)), aes(y = Hg_ug_g, x = depth_cm, shape=peat)) +
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Hg", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=6.5, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values = c("Conventional arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural fen" ="#B5E48C", "Rewetted bog" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
 Hg_all
 #
 dev.off()
@@ -652,6 +671,7 @@ dev.off()
 ##################################################################################
 #
 #### Rb - indicates dust loading ####
+#### Rb ratio plots ####
 #
 dat <- dat %>% 
   mutate( Cu_Rb = Cu_ug_g /Rb_ug_g , 
@@ -695,17 +715,20 @@ dev.off()
 #
 tiff("ZnRb_LP3+_peat_cores_all.tiff", units="in",  width=8, height=4.5, res=300)
 
-Zn_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Zn_Rb, x = depth_cm, shape=peat)) + 
-  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
-  geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+Zn_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Zn_Rb, x = depth_cm, shape=peat)) +   
+  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +  
+  geom_point(size=1.5, alpha=0.7) +   
+  geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +  
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +    
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Zn:Rb", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   scale_y_continuous(breaks = seq(0, 400, by = 200)) +
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
-  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +     scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )
 Zn_Rb_plot
 
 dev.off()
@@ -716,6 +739,9 @@ tiff("CuRb_LP3+_peat_cores_all.tiff", units="in",  width=8, height=4.5, res=300)
 Cu_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Cu_Rb, x = depth_cm, shape=peat)) + 
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +    
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   scale_shape_manual(values=c( 21, 19)) +
   labs(y = "Cu:Rb", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
@@ -723,7 +749,7 @@ Cu_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Cu_Rb, x = depth_cm, sha
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) ) # override alpha 1 for legend
 Cu_Rb_plot
 
 dev.off()
@@ -735,28 +761,33 @@ Pb_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = Pb_Rb, x = depth_cm, sha
   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
   scale_shape_manual(values=c( 21, 19)) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +    
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   labs(y = "Pb:Rb", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   scale_y_continuous( breaks = seq(0, 400, by = 200)) + 
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) ) # override alpha 1 for legend 
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) )  # override alpha 1 for legend 
 Pb_Rb_plot
 
 dev.off()
 
-As_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = As_Rb, x = depth_cm, shape=peat)) + 
-  geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
+As_Rb_plot <- ggplot(subset(dat, !is.na(site)), aes(y = As_Rb, x = depth_cm, shape=peat)) +   geom_rect( data = subset(dat, !is.na(site)) %>% distinct(site, land_use),  aes(fill = land_use),     xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf, alpha = 0.8,  inherit.aes = FALSE ) +
   geom_point(size=1.5, alpha=0.7) +   geom_smooth(se = FALSE, method = "loess", span = 0.15, colour = "red", linewidth=0.4, alpha=0.5) +
   scale_shape_manual(values=c( 21, 19)) +
+  geom_vline(data = subset(dat, site == "WSF") %>% distinct(site), aes(xintercept = 65), colour = "black",linetype = "dashed", linewidth = 0.9 ) +    
+  geom_vline(data = subset(dat, site == "WF") %>% distinct(site), aes(xintercept = 50), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
+  geom_vline(data = subset(dat, site == "WBF") %>% distinct(site), aes(xintercept = 10), colour = "black",linetype = "dashed", linewidth = 0.9 ) +  geom_vline(data = subset(dat, site == "ND") %>% distinct(site), aes(xintercept = 91), colour = "black",linetype = "dashed", linewidth = 0.9 ) +
   labs(y = "As:Rb", x = "Depth (cm)") +
   scale_x_reverse() +  # Reverse the x-axis so 0 is on the right
   #scale_y_continuous( breaks = seq(0, 500, by = 250)) + 
   coord_flip() +  # Rotate the plot 90 degrees counterclockwise
   facet_wrap(~ site, nrow = 1) +  # Create a plot for each site
   theme_minimal() +   theme(legend.text=element_text(size=7.5), panel.grid.major = element_line(color = "black"),   legend.position = "top", legend.title = element_blank(), panel.border = element_rect(color = "black", fill = NA, size = 1), axis.ticks.x = element_line(), axis.ticks.y = element_line(), axis.text.x = element_text(size=7, angle = 45, hjust = 1)) +   
-  scale_fill_manual(values =  c("Arable" = "#D8B4F8", "Regenerative arable" =  "#8F90D1", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4")  , guide = guide_legend(override.aes = list(alpha = 1)) ) # override alpha 1 for legend 
+  scale_fill_manual(values = c("Arable" = "#D8B4F8", "Grassland" = "#FDE68A",  "Semi-natural" ="#B5E48C", "Rewetted" = "#A5F2D4") , guide = guide_legend(override.aes = list(alpha = 1)) ) # override alpha 1 for legend 
 As_Rb_plot
 
 
@@ -1189,6 +1220,7 @@ loi_model <- lmer(percent_loi ~ land_use + (1 | site), data = dat_top30)
 summary(loi_model)
 anova(loi_model)
 plot(loi_model)
+qqnorm(resid(loi_model))
 qqline(resid(loi_model), col = "red")
 # lmm isn't the best for percentage data, use glmm
 # adjust 100s to make them a bit smaller
@@ -1197,8 +1229,8 @@ dat_top30$loi_prop_adj <- (dat_top30$loi_prop * (n - 1) + 0.5) / n
 #
 # run beta glmm
 model_beta <- glmmTMB(loi_prop_adj ~ land_use + (1 | site),  family = beta_family(link = "logit"),  data = dat_top30)
-#
-
+summary(model_beta)
+anova(model_beta)
 #
 # Estimated marginal means for land_use
 emmeans(loi_model, ~ land_use)
@@ -1211,48 +1243,69 @@ pairs(emm, adjust = "fdr")  #try tukey, sidak, fdr none sig
 loi_model2 <- lmer(percent_loi ~ land_use*peat + (1 | site), data = dat_top30)
 summary(loi_model2) # because peat type isn't represented in each land use this doesnt work
 #
-# Other variables
-cu_model <- lmer(Cu_ug_g ~ land_use + (1 | site), data = dat)
+#### lmer for other variables ####
+cu_model <- lmer(log1p(Cu_ug_g) ~ land_use + (1 | site), data = dat) # much better after transformation
 summary(cu_model)
+plot(cu_model)
+qqnorm(resid(cu_model))
+qqline(resid(cu_model), col = "red")
 anova(cu_model)
-emmeans(cu_model, ~ land_use*peat)
-pairs(emmeans(cu_model, ~ land_use*peat))
+emmeans(cu_model, ~ land_use)
+pairs(emmeans(cu_model, ~ land_use)) # semi natural - Arable/Grassland p = 0.03
 #
-fe_model <- lmer(Fe_mg_g ~ land_use + (1 | site), data = dat)
+fe_model <- lmer(log(Fe_mg_g) ~ land_use + (1 | site), data = dat)
 summary(fe_model)
+plot(fe_model)
+qqnorm(resid(fe_model))
+qqline(resid(fe_model), col = "red")
 anova(fe_model)
 emmeans(fe_model, ~ land_use)
-pairs(emmeans(fe_model, ~ land_use))
+pairs(emmeans(fe_model, ~ land_use)) # Rewetted - Arable p = 0.02
 #
-pb_model <- lmer(Pb_ug_g ~ land_use + (1 | site), data = dat)
+pb_model <- lmer(log1p(Pb_ug_g) ~ land_use + (1 | site), data = dat)
 summary(pb_model)
+plot(pb_model)
+qqnorm(resid(pb_model))
+qqline(resid(pb_model), col = "red")
 anova(pb_model)
 emmeans(pb_model, ~ land_use)
-pairs(emmeans(pb_model, ~ land_use))
+pairs(emmeans(pb_model, ~ land_use)) # no sig ffects
 #
-hg_model <- lmer(Hg_ug_g ~ land_use + (1 | site), data = dat)
+hg_model <- lmer(log1p(Hg_ug_g) ~ land_use + (1 | site), data = dat)
 summary(hg_model)
+plot(hg_model)
+qqnorm(resid(hg_model))
+qqline(resid(hg_model), col = "red")
 anova(hg_model)
 emmeans(hg_model, ~ land_use)
-pairs(emmeans(hg_model, ~ land_use))
+pairs(emmeans(hg_model, ~ land_use)) # no sig effects
 #
-zn_model <- lmer(Zn_ug_g ~ land_use + (1 | site), data = dat)
+zn_model <- lmer(log1p(Zn_ug_g) ~ land_use + (1 | site), data = dat)
 summary(zn_model)
+plot(zn_model)
+qqnorm(resid(zn_model))
+qqline(resid(hg_model), col = "red")
 anova(zn_model)
 emmeans(zn_model, ~ land_use)
-pairs(emmeans(zn_model, ~ land_use))
+pairs(emmeans(zn_model, ~ land_use)) # no sig effects
 #
-k_model <- lmer(K_mg_g ~ land_use + (1 | site), data = dat)
+k_model <- lmer(log1p(K_mg_g) ~ land_use + (1 | site), data = dat)
 summary(k_model)
+plot(k_model)
+qqnorm(resid(k_model))
+qqline(resid(k_model), col = "red")
 anova(k_model)
 emmeans(k_model, ~ land_use)
-pairs(emmeans(k_model, ~ land_use))
+pairs(emmeans(k_model, ~ land_use)) # no sig effects
 #
-p_model <- lmer(P_mg_g ~ land_use + (1 | site), data = dat)
-anova(p_model)
+p_model <- lmer(log1p(P_mg_g) ~ land_use + (1 | site), data = dat)
 summary(p_model)
+plot(p_model)
+qqnorm(resid(p_model))
+qqline(resid(p_model), col = "red")
+anova(p_model) #p = 0.007
 emmeans(p_model, ~ land_use)
-pairs(emmeans(p_model, ~ land_use))
+pairs(emmeans(p_model, ~ land_use))  #(Semi-natural) - Arable  Rewetted - Arable 
 #
 #
 #
