@@ -21,18 +21,19 @@ library(Hmisc)
 setwd("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Figures")
 #
 # Read in GHG concentration data (from Mike's excel file calculations)
-conc_dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Dissolved GHG calc sheet_2024_TS_additional_ghg_data.xlsx", sheet="output")
+conc_dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Dissolved GHG calculations/Dissolved GHG calc sheet_2024_TS_additional_ghg_data.xlsx", sheet="output")
 head(conc_dat)  #64 obs of 4 vars
 #
 #
 # Read in GHG flux data (from Mike's excel file calculations)
-flux_dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Flux calculations/Copy of Fluxes from concs_additional_ghg_data.xlsx", sheet="output")
+flux_dat <- read_excel("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Flux calculations/Copy of Fluxes from concs_additional_ghg_data.xlsx", sheet="output")
 head(flux_dat)  #64 of 4 vars
 #
 #
 # Read in ancil dat
 ancil_dat<- read.csv("C:/Users/teres/Documents/LowlandPeat3/LP3 aquatic GHG sampling/Data/Additional GHG data/additional_ghg_data_ppm.csv")
 head(ancil_dat)
+#
 #
 ancil_dat <- ancil_dat %>%
   mutate(date = as.Date(date, format = "%d-%b-%y")) %>%
@@ -149,21 +150,33 @@ CO2_conc <- ggplot(dat, aes(x = fct_reorder(land_use, CO2_mg_l, .fun = mean, .na
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
   scale_shape_manual(values=c(24,21))+
-  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  #stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  geom_point(data = data.frame( x = 1:5,     y = c(4.725157, 8.763515, 26.94642, 40.48949, 44.36477)
+  ),   aes(x = x, y = y),  shape = 4, size = 3, stroke = 1.2, color = "black", inherit.aes = FALSE) +
   labs(y = expression(CO[2] ~ "(mg L"^-1*")"),  x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
-  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 10, 100), labels = scales::number)+
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c( 0.1, 10, 100), labels = scales::number)+
   theme(legend.title=element_blank(), legend.position = "top", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" ,  "River/HLC" ="#FFB347",  "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
 CO2_conc 
 # land use p = 0.16
+
+# Had the add the menas manually because stat summary was being weird (due to the log transformation I think)
+#update if you add new data
+mean(dat$CO2_mg_l[dat$land_use == "Conservation"], na.rm = TRUE)
+mean(dat$CO2_mg_l[dat$land_use == "River/HLC"], na.rm = TRUE)
+mean(dat$CO2_mg_l[dat$land_use == "Grassland"], na.rm = TRUE)
+mean(dat$CO2_mg_l[dat$land_use == "Rewetted extraction"], na.rm = TRUE)
+mean(dat$CO2_mg_l[dat$land_use == "Cropland"], na.rm = TRUE)
 #
 #
 CH4_conc <- ggplot(dat, aes( x= fct_reorder(land_use, CH4_ug_l, .fun = mean, .na_rm = TRUE), y = CH4_ug_l, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
   scale_shape_manual(values=c(24,21))+
-  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  #stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  geom_point(data = data.frame( x = 1:5,     y = c(15.9688, 589.4823, 1653.966, 1739.639, 1765.211)
+  ),   aes(x = x, y = y),  shape = 4, size = 3, stroke = 1.2, color = "black", inherit.aes = FALSE) +
   labs( y = expression(CH[4] ~ "(μg L"^-1*")"),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   #scale_y_log10() +
@@ -171,13 +184,24 @@ CH4_conc <- ggplot(dat, aes( x= fct_reorder(land_use, CH4_ug_l, .fun = mean, .na
   theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.x = element_text(angle = 45, hjust = 1, size=12),  axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) + guides(fill = "none") +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" ,  "River/HLC" ="#FFB347",   "Conservation" = "#6DA34D" )) 
 CH4_conc 
+
+
+# Had the add the menas manually because stat summary was being weird (due to the log transformation I think)
+#update if you add new data
+mean(dat$CH4_ug_l[dat$land_use == "River/HLC"], na.rm = TRUE)
+mean(dat$CH4_ug_l[dat$land_use == "Cropland"], na.rm = TRUE)
+mean(dat$CH4_ug_l[dat$land_use == "Grassland"], na.rm = TRUE)
+mean(dat$CH4_ug_l[dat$land_use == "Rewetted extraction"], na.rm = TRUE)
+mean(dat$CH4_ug_l[dat$land_use == "Conservation"], na.rm = TRUE)
 #
 #
 N2O_conc <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_ug_l, .fun = mean, .na_rm = TRUE), y = N2O_ug_l, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
   scale_shape_manual(values=c(24,21))+
-  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  #stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  geom_point(data = data.frame( x = 1:5,     y = c(4.203853, 20.32646, 49.54155, 287.5368, 708.2769)
+  ),   aes(x = x, y = y),  shape = 4, size = 3, stroke = 1.2, color = "black", inherit.aes = FALSE) +
   labs(y = expression(N[2]*O ~ " (μg" ~ L^{-1} ~ ")"),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100, 1000), labels = scales::number) +
@@ -186,6 +210,14 @@ N2O_conc <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_ug_l, .fun = mean, .na_
 N2O_conc #axis.text.x = element_text(angle = 45, hjust = 1, size=12),
 #
 #
+# Had the add the menas manually because stat summary was being weird (due to the log transformation I think)
+#update if you add new data
+mean(dat$N2O_ug_l[dat$land_use == "River/HLC"], na.rm = TRUE)
+mean(dat$N2O_ug_l[dat$land_use == "Rewetted extraction"], na.rm = TRUE)
+mean(dat$N2O_ug_l[dat$land_use == "Cropland"], na.rm = TRUE)
+mean(dat$N2O_ug_l[dat$land_use == "Grassland"], na.rm = TRUE)
+mean(dat$N2O_ug_l[dat$land_use == "Conservation"], na.rm = TRUE)
+
 ###############################################################################
 ### fluxes ###
 #
@@ -193,43 +225,75 @@ CO2_flux <- ggplot(dat, aes( x= fct_reorder(land_use, CO2_g_m2_d, .fun = mean, .
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
   scale_shape_manual(values=c(24,21))+
-  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  #stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  geom_point(data = data.frame( x = 1:5,     y = c(0.9911298, 2.308129, 7.716129, 11.04721, 12.71997)
+  ),   aes(x = x, y = y),  shape = 4, size = 3, stroke = 1.2, color = "black", inherit.aes = FALSE) +
   labs(y = expression(g~CO[2]*~m^-2*~d^-1), x = NULL, fill = " " ) +
   theme_minimal() + # Clean theme
-  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0, 1, 3, 10, 30), labels = scales::number)+
-  theme(legend.title=element_blank(), legend.position = "top", axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+  #scale_y_log10() + 
+  scale_y_continuous(trans = 'pseudo_log',   breaks = c(0.3, 3, 10, 30), labels = scales::number)+
+  theme(legend.title=element_blank(), legend.position = "top", axis.text.x = element_text(angle = 45, hjust = 1, size=12), axis.title = element_text(size = 13), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "Rewetted bog" = "#A5F2D4" , "River/HLC" ="#FFB347",   "Conservation" = "#6DA34D" )) + guides(fill = "none") 
 CO2_flux #axis.text.x = element_text(angle = 45, hjust = 1, size=12),
 #
+# Had the add the menas manually because stat summary was being weird (due to the log transformation I think)
+#update if you add new data
+mean(dat$CO2_g_m2_d[dat$land_use == "Conservation"], na.rm = TRUE)
+mean(dat$CO2_g_m2_d[dat$land_use == "River/HLC"], na.rm = TRUE)
+mean(dat$CO2_g_m2_d[dat$land_use == "Grassland"], na.rm = TRUE)
+mean(dat$CO2_g_m2_d[dat$land_use == "Rewetted extraction"], na.rm = TRUE)
+mean(dat$CO2_g_m2_d[dat$land_use == "Cropland"], na.rm = TRUE)
+
 #
 CH4_flux <- ggplot(dat, aes(x= fct_reorder(land_use, CH4_mg_m2_d, .fun = mean, .na_rm = TRUE), y = CH4_mg_m2_d, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
   scale_shape_manual(values=c(24,21))+
-  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  #stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  geom_point(data = data.frame( x = 1:5,     y = c(5.028243, 175.4052, 429.2863, 459.008, 498.6165)
+  ),   aes(x = x, y = y),  shape = 4, size = 3, stroke = 1.2, color = "black", inherit.aes = FALSE) +
   labs( y = "CO2",  x = NULL,   fill = "Land Use" ) +
   labs( y = expression(~mg~CH[4]*~m^-2~d^-1),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   #scale_y_log10() +
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100, 1000), labels = scales::number)+
-    theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
+    theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 13), axis.text.y = element_text(size=12), panel.grid.major = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, size=12),   panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +
   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" ,  "River/HLC" ="#FFB347",   "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
 CH4_flux # axis.text.x = element_text(angle = 45, hjust = 1, size=12),
 #
+# Had the add the menas manually because stat summary was being weird (due to the log transformation I think)
+#update if you add new data
+mean(dat$CH4_mg_m2_d[dat$land_use == "River/HLC"], na.rm = TRUE)
+mean(dat$CH4_mg_m2_d[dat$land_use == "Cropland"], na.rm = TRUE)
+mean(dat$CH4_mg_m2_d[dat$land_use == "Conservation"], na.rm = TRUE)
+mean(dat$CH4_mg_m2_d[dat$land_use == "Grassland"], na.rm = TRUE)
+mean(dat$CH4_mg_m2_d[dat$land_use == "Rewetted extraction"], na.rm = TRUE)
+
 #
 N2O_flux <- ggplot(dat, aes(x= fct_reorder(land_use, N2O_mg_m2_d, .fun = mean, .na_rm = TRUE), y = N2O_mg_m2_d, fill = land_use)) + # Use fill for land use categories
   geom_boxplot(outlier.shape = NA) + 
   geom_jitter(aes(fill = land_use, shape=peat_type), colour="black", alpha=0.5, size = 3, width = 0.2) + 
   scale_shape_manual(values=c(24,21))+
-  stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  #stat_summary(fun = mean, geom = "point", shape = 4, size = 3, stroke =1.2, color = "black") +
+  geom_point(data = data.frame( x = 1:5,     y = c(1.396329, 6.72296, 17.42394, 95.22246, 228.7116 )
+  ),   aes(x = x, y = y),  shape = 4, size = 3, stroke = 1.2, color = "black", inherit.aes = FALSE) +
   labs( y = "CO2",  x = NULL,   fill = "Land Use" ) +
   labs(y = expression(mg~N[2]*`O`*~m^-2~d^-1),   x = NULL,   fill = " " ) +
   theme_minimal() + # Clean theme
   #scale_y_log10() +
   scale_y_continuous(trans = 'pseudo_log',   breaks = c(1, 10, 100, 1000), labels = scales::number)+
-  theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 14), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "River/HLC" ="#FFB347",  "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
+  theme(legend.title=element_blank(),  legend.position = "top", axis.title = element_text(size = 13), axis.text.y = element_text(size=12), panel.grid.major = element_blank(),  axis.text.x = element_text(angle = 45, hjust = 1, size=12), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), axis.ticks = element_line(color = "black")   ) +   scale_fill_manual(values = c("Cropland" = "#D8B4F8", "Grassland" = "#FDE68A", "Rewetted extraction"= "#D16BA5" , "River/HLC" ="#FFB347",  "Conservation" = "#6DA34D" ))  + guides(fill = "none") 
 N2O_flux
 #
+# Had the add the menas manually because stat summary was being weird (due to the log transformation I think)
+#update if you add new data
+mean(dat$N2O_mg_m2_d[dat$land_use == "River/HLC"], na.rm = TRUE)
+mean(dat$N2O_mg_m2_d[dat$land_use == "Rewetted extraction"], na.rm = TRUE)
+mean(dat$N2O_mg_m2_d[dat$land_use == "Cropland"], na.rm = TRUE)
+mean(dat$N2O_mg_m2_d[dat$land_use == "Grassland"], na.rm = TRUE)
+mean(dat$N2O_mg_m2_d[dat$land_use == "Conservation"], na.rm = TRUE)
+
+
 ################################################################################
 #### combine plots ####
 #
@@ -239,6 +303,16 @@ jpeg("additional_ghg_plots_all.jpeg", units="in", width=8, height=10, res=300)
 flux_conc <- ggarrange(CO2_conc, CO2_flux, CH4_conc, CH4_flux, N2O_conc, N2O_flux,
                        nrow = 3, ncol = 2, align = "v", common.legend = T, labels = c("A", "B", "C", "D", "E", "F"))
 flux_conc
+
+dev.off()
+#
+# For publication the reviewer has asked for just the flux plots: 
+#
+jpeg("ghg_flux_plots_all.jpeg", units="in", width=4, height=9.5, res=300)
+
+flux <- ggarrange(CO2_flux, CH4_flux,  N2O_flux,
+                       nrow = 3, ncol = 1, align = "v", common.legend = T, labels = c("A", "B", "C"))
+flux
 
 dev.off()
 
@@ -395,7 +469,7 @@ dat_cor <- subset(dat_joined, !is.na(pH))
 dat_numeric <- select(dat_cor, where(is.numeric))
 #
 dat_numeric <- dat_numeric %>%
-  select(-X, -CO2_mg_m2_d, -CO2_g_m2_d, -CH4_mg_m2_d, -N2O_mg_m2_d, -CH4_ug_l, -N2O_mg_l,  -As_ug_l, -Cd_ug_l, -Cr_ug_l, -Li_mg_l, -Si_ug_l, -Hg_ug_l, -NPOC_mg_l, -IC_mg_l, -TC_mg_l, -TN_mg_l, -Pb_ug_l, -Cu_ug_l, -Zn_ug_l,  -C_umol_L, -N_umol_L, -P_umol_L, -NH4_N_mg_l, -NO2_N_mg_l, -NO3_N_mg_l, -PO4_P_mg_l, -TIN_mg_l, -N_redfield, -P_redfield, -sum_CNP, -C_tern, -N_tern, -P_tern, -CN_ratio, -CP_ratio, -lat, -lon) # drop empty columns and drop NPOC, Cd, Cr, Li bc mostly 0, as well as redundant GHG/stoich vars (use only conc) # because there are quite a lot of variables, 
+  select(-X, -CO2_mg_m2_d, -CO2_g_m2_d, -CH4_mg_m2_d, -N2O_mg_m2_d, -CH4_ug_l, -N2O_mg_l,  -As_ug_l, -Cd_ug_l, -Cr_ug_l, -Li_mg_l, -Si_ug_l, -Hg_ug_l, -NPOC_mg_l, -IC_mg_l, -TC_mg_l, -TN_mg_l, -Pb_ug_l, -Cu_ug_l, -Zn_ug_l,  -C_umol_L, -N_umol_L, -P_umol_L, -NH4_mg_l, -NO2_mg_l, -NO3_mg_l, -PO4_mg_l, -SO4_mg_l, -TIN_mg_l, -N_redfield, -P_redfield, -sum_CNP, -C_tern, -N_tern, -P_tern, -CN_ratio, -CP_ratio, -lat, -lon) # drop empty columns and drop NPOC, Cd, Cr, Li bc mostly 0, as well as redundant GHG/stoich vars (use only conc) # because there are quite a lot of variables, 
 #
 zero_counts <- sapply(dat_numeric, function(x) sum(x == 0, na.rm = TRUE))  #drop also WQ vars with a lot of 0: Pb, Cu, Zn
 #
@@ -404,6 +478,11 @@ colnames(dat_numeric) <- gsub("_ug_l|_mg_l|_us_cm", "", colnames(dat_numeric))
 #
 # Update labels
 names(dat_numeric)[names(dat_numeric) == 'NP_ratio'] <- 'N:P'
+names(dat_numeric)[names(dat_numeric) == 'NO2_N'] <- 'NO2-N'
+names(dat_numeric)[names(dat_numeric) == 'NO3_N'] <- 'NO3-N'
+names(dat_numeric)[names(dat_numeric) == 'NH4_N'] <- 'NH4-N'
+names(dat_numeric)[names(dat_numeric) == 'PO4_P'] <- 'PO4-P'
+names(dat_numeric)[names(dat_numeric) == 'SO4_S'] <- 'SO4-S'
 #
 # make data frame into matrix
 dat_matrix <- Hmisc::rcorr(as.matrix(dat_numeric),  type = "spearman")
